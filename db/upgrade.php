@@ -28,5 +28,18 @@
  * @return bool
  */
 function xmldb_local_documents_upgrade($oldversion) {
+    if ($oldversion < 2026102800) {
+        // The brand manual's letter (Figma "Letter"): sentence-case titles, the recipient as a block
+        // of its own, an attachment line. Only templates nobody edited get the new version.
+        \local_documents\local\catalog::refresh_untouched(
+            'Diseño de carta del manual de marca: título en tipo oración, destinatario como bloque propio, adjunto.');
+        // The old letterhead's settings: replaced by the seal, the stamp and the footer logo.
+        foreach (['headerlines', 'footertext', 'brandcolor', 'logo2'] as $name) {
+            unset_config($name, 'local_documents');
+        }
+        $fs = get_file_storage();
+        $fs->delete_area_files(context_system::instance()->id, 'local_documents', 'logo2');
+        upgrade_plugin_savepoint(true, 2026102800, 'local', 'documents');
+    }
     return true;
 }

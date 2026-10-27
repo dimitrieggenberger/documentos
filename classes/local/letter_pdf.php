@@ -22,10 +22,15 @@ global $CFG;
 require_once($CFG->libdir . '/pdflib.php');
 
 /**
- * The letter-size sheet: letterhead, number block, QR code and footer band.
+ * The letter-size sheet of the brand manual: seal, school and department in
+ * the header, the pale seal behind the page, europaschule.eu and the page in
+ * the footer.
  *
- * Every measure of the layout is a constant here, so matching the Figma
- * frame is a change in one place.
+ * Every measure is in points and comes from the Figma frame "Letter"
+ * (EuropaSchule · Design Sandbox, node 109:508): US Letter 612 × 792 pt,
+ * margins 1.5 cm top and bottom (42.5 pt) and 3 cm left and right (85 pt),
+ * Poppins throughout. Matching a later change of the frame is a change of
+ * these constants.
  *
  * @package   local_documents
  * @copyright Educación Helvética SA / EuropaSchule
@@ -33,127 +38,214 @@ require_once($CFG->libdir . '/pdflib.php');
  */
 class letter_pdf extends \pdf {
 
-    /** @var float Letter, in millimetres. */
-    const PAGE_W = 215.9;
+    /** @var float US Letter. */
+    const PAGE_W = 612;
     /** @var float */
-    const PAGE_H = 279.4;
-    /** @var float Side margins. */
-    const MARGIN_X = 22;
-    /** @var float Where the text starts under the letterhead. */
-    const BODY_TOP = 42;
-    /** @var float Room kept free for the footer (QR and band). */
-    const FOOTER_H = 46;
-    /** @var float Letterhead logo height. */
-    const LOGO_H = 20;
-    /** @var float QR code side. */
-    const QR = 24;
-    /** @var float Footer band height. */
-    const BAND_H = 11;
-    /** @var string Body font: FreeSans carries every Spanish character. */
-    const FONT = 'freesans';
+    const PAGE_H = 792;
+    /** @var float 3 cm. */
+    const MARGIN_X = 85;
+    /** @var float 1.5 cm. */
+    const MARGIN_Y = 42.5;
+    /** @var float The header's seal. */
+    const SEAL = 66;
+    /** @var float Gap between the header's items. */
+    const HEADER_GAP = 24;
+    /** @var float The header's vertical rules. */
+    const RULE_H = 32;
+    /** @var float The school column of the header. */
+    const SCHOOL_W = 140;
+    /** @var float Space under the header, before place and date. */
+    const AFTER_HEADER = 110;
+    /** @var float Space after place and date. */
+    const AFTER_DATE = 28;
+    /** @var float Space after the recipient, before the title. */
+    const AFTER_RECIPIENT = 52;
+    /** @var float Space before the title when there is no recipient. */
+    const BEFORE_TITLE = 40;
+    /** @var float Space after the title. */
+    const AFTER_TITLE = 16;
+    /** @var float Space between paragraphs of the body. */
+    const PARAGRAPH = 10;
+    /** @var float Space before the signature block. */
+    const BEFORE_SIGNATURE = 8;
+    /** @var float The room left to sign by hand, above the name. */
+    const SIGN_H = 34;
+    /** @var float A signer's column. */
+    const SIGNER_W = 150;
+    /** @var float Gap between signers and the stamp. */
+    const SIGNER_GAP = 28;
+    /** @var float The stamp beside the signatures. */
+    const STAMP = 78;
+    /** @var float Space before the attachment line. */
+    const BEFORE_ATTACHMENT = 36;
+    /** @var float The watermark: 380 pt, centred, its top 229 pt down. */
+    const WATERMARK = 380;
+    /** @var float */
+    const WATERMARK_TOP = 229;
+    /** @var float Opacity of the watermark (5 %). */
+    const WATERMARK_ALPHA = 0.05;
+    /** @var float europaschule.eu, bottom left. */
+    const URL_W = 92;
+    /** @var float */
+    const URL_H = 15.935;
+    /** @var float The verification QR code, bottom right. */
+    const QR = 40;
+    /** @var float The footer's height: the body stops above it. */
+    const FOOTER_H = 52;
+    /** @var string The brand font, converted for TCPDF in fonts/. */
+    const FONT = 'poppins';
+    /** @var int[] Body text, #1d2125. */
+    const TEXT = [29, 33, 37];
+    /** @var int[] Secondary text, #6a737b. */
+    const MUTED = [106, 115, 123];
+    /** @var int[] Rules and table borders, #dee2e6. */
+    const RULE = [222, 226, 230];
 
     /** @var array What the header and footer print, set by pdf::render(). */
     public $sheet = [];
 
     /**
-     * Letterhead, watermark and the draft mark, on every page.
+     * Register Poppins from the plugin's fonts folder.
+     *
+     * @return void
+     */
+    public function add_brand_fonts(): void {
+        $dir = dirname(__DIR__, 2) . '/fonts/';
+        $this->AddFont(self::FONT, '', $dir . 'poppins.php');
+        $this->AddFont(self::FONT, 'B', $dir . 'poppinsb.php');
+        $this->AddFont(self::FONT, 'I', $dir . 'poppinsi.php');
+    }
+
+    /**
+     * Where the body starts on every page: under the header.
+     *
+     * @return float
+     */
+    public static function body_top(): float {
+        return self::MARGIN_Y + self::SEAL + self::HEADER_GAP;
+    }
+
+    /**
+     * The width text may take.
+     *
+     * @return float
+     */
+    public static function text_width(): float {
+        return self::PAGE_W - 2 * self::MARGIN_X;
+    }
+
+    /**
+     * Watermark, header and the draft mark, on every page.
      *
      * @return void
      */
     public function Header() { // phpcs:ignore moodle.NamingConventions.ValidFunctionName.LowercaseMethod
         $sheet = $this->sheet;
-        $color = self::rgb($sheet['school']['brandcolor']);
+        $images = $sheet['images'];
 
-        if (!empty($sheet['images']['watermark'])) {
-            $this->SetAlpha(0.07);
-            $this->Image($sheet['images']['watermark'], (self::PAGE_W - 120) / 2, 85, 120, 0, '', '', '', false, 300,
-                '', false, false, 0, false, false, false);
+        if (!empty($images['watermark'])) {
+            $this->SetAlpha(self::WATERMARK_ALPHA);
+            $this->Image($images['watermark'], (self::PAGE_W - self::WATERMARK) / 2, self::WATERMARK_TOP,
+                self::WATERMARK, self::WATERMARK, '', '', '', false, 300, '', false, false, 0, false, false, false);
             $this->SetAlpha(1);
         }
-        if (!empty($sheet['images']['logo'])) {
-            $this->Image($sheet['images']['logo'], self::MARGIN_X, 11, 0, self::LOGO_H, '', '', '', false, 300, '',
-                false, false, 0, false, false, false);
-        }
-        if (!empty($sheet['images']['logo2'])) {
-            $this->Image($sheet['images']['logo2'], self::MARGIN_X, 11, 0, self::LOGO_H, '', '', '', false, 300, 'R',
-                false, false, 0, false, false, false);
-        }
 
-        $inner = self::PAGE_W - 2 * self::MARGIN_X - 2 * 30;
-        $this->SetTextColor($color[0], $color[1], $color[2]);
-        $this->SetFont(self::FONT, 'B', 13);
-        $this->SetXY(self::MARGIN_X + 30, 13);
-        $this->MultiCell($inner, 6, \core_text::strtoupper($sheet['school']['name']), 0, 'C', false, 1);
-        if ($sheet['school']['headerlines'] !== '') {
-            $this->SetTextColor(73, 80, 87);
-            $this->SetFont(self::FONT, '', 8.5);
-            $this->SetX(self::MARGIN_X + 30);
-            $this->MultiCell($inner, 4, $sheet['school']['headerlines'], 0, 'C', false, 1);
+        $x = self::MARGIN_X;
+        $y = self::MARGIN_Y;
+        if (!empty($images['seal'])) {
+            $this->Image($images['seal'], $x, $y, self::SEAL, self::SEAL, '', '', '', false, 300, '', false, false, 0,
+                false, false, false);
         }
-        $this->SetDrawColor($color[0], $color[1], $color[2]);
-        $this->SetLineWidth(0.6);
-        $this->Line(self::MARGIN_X, 35, self::PAGE_W - self::MARGIN_X, 35);
+        $x += self::SEAL + self::HEADER_GAP;
+        $this->rule($x, $y);
+        $x += 0.75 + self::HEADER_GAP;
+        $this->header_block($x, $y, self::SCHOOL_W, $sheet['school']['name'], [$sheet['school']['legalname']]);
+        $x += self::SCHOOL_W + self::HEADER_GAP;
+        $this->rule($x, $y);
+        $x += 0.75 + self::HEADER_GAP;
+        $unit = $sheet['unit'];
+        $this->header_block($x, $y, self::PAGE_W - self::MARGIN_X - $x, $unit['name'], [$unit['email'], $unit['phone']]);
 
         if (empty($sheet['final'])) {
-            $this->SetAlpha(0.12);
+            $this->SetAlpha(0.08);
             $this->SetTextColor(161, 39, 52);
-            $this->SetFont(self::FONT, 'B', 72);
+            $this->SetFont(self::FONT, 'B', 96);
             $this->StartTransform();
             $this->Rotate(35, self::PAGE_W / 2, self::PAGE_H / 2);
-            $this->Text(28, self::PAGE_H / 2 - 12, $sheet['strings']['draft']);
+            $this->Text(70, self::PAGE_H / 2 - 40, $sheet['strings']['draft']);
             $this->StopTransform();
             $this->SetAlpha(1);
         }
-        $this->SetTextColor(22, 33, 44);
+        $this->SetTextColor(...self::TEXT);
     }
 
     /**
-     * QR code, number, verification line and the footer band.
+     * europaschule.eu at the bottom left; the verification and the page at the bottom right.
      *
      * @return void
      */
     public function Footer() { // phpcs:ignore moodle.NamingConventions.ValidFunctionName.LowercaseMethod
         $sheet = $this->sheet;
-        $color = self::rgb($sheet['school']['brandcolor']);
-        $top = self::PAGE_H - self::BAND_H - self::QR - 8;
+        $bottom = self::PAGE_H - self::MARGIN_Y;
 
-        $textx = self::MARGIN_X;
+        if (!empty($sheet['images']['url'])) {
+            $this->Image($sheet['images']['url'], self::MARGIN_X, $bottom - self::URL_H, self::URL_W, self::URL_H, '', '',
+                '', false, 300, '', false, false, 0, false, false, false);
+        }
+
+        $right = self::PAGE_W - self::MARGIN_X;
         if (!empty($sheet['final'])) {
-            $this->write2DBarcode($sheet['verifyurl'], 'QRCODE,M', self::MARGIN_X, $top, self::QR, self::QR,
-                ['border' => false, 'padding' => 0, 'fgcolor' => [0, 0, 0], 'bgcolor' => false], 'N');
-            $textx = self::MARGIN_X + self::QR + 4;
+            $this->write2DBarcode($sheet['verifyurl'], 'QRCODE,M', $right - self::QR, $bottom - self::QR, self::QR, self::QR,
+                ['border' => false, 'padding' => 0, 'fgcolor' => self::TEXT, 'bgcolor' => false], 'N');
+            $right -= self::QR + 8;
         }
-        $width = self::PAGE_W - self::MARGIN_X - $textx;
-        $this->SetTextColor(22, 33, 44);
-        $this->SetXY($textx, $top + 1);
-        $this->SetFont(self::FONT, 'B', 8);
-        $this->MultiCell($width, 4, $sheet['strings']['numberline'], 0, 'L', false, 1, $textx);
-        $this->SetFont(self::FONT, '', 7.5);
-        foreach ($sheet['strings']['footerlines'] as $line) {
-            $this->MultiCell($width, 3.6, $line, 0, 'L', false, 1, $textx);
+        $lines = $sheet['strings']['footerlines'];
+        $lines[] = sprintf($sheet['strings']['page'], $this->getAliasNumPage(), $this->getAliasNbPages());
+        $width = 260;
+        $this->SetTextColor(...self::MUTED);
+        $this->SetFont(self::FONT, '', 6);
+        $this->setCellHeightRatio(1.25);
+        $y = $bottom - count($lines) * 7.5;
+        foreach ($lines as $i => $line) {
+            $this->SetFont(self::FONT, $i === 0 && !empty($sheet['final']) ? 'B' : '', 6);
+            $this->SetXY($right - $width, $y);
+            $this->Cell($width, 7.5, $line, 0, 0, 'R', false, '', 1);
+            $y += 7.5;
         }
-        $this->SetTextColor(107, 114, 128);
-        $this->MultiCell($width, 3.6, sprintf($sheet['strings']['page'], $this->getAliasNumPage(),
-            $this->getAliasNbPages()), 0, 'L', false, 1, $textx);
-
-        $this->SetFillColor($color[0], $color[1], $color[2]);
-        $this->Rect(0, self::PAGE_H - self::BAND_H, self::PAGE_W, self::BAND_H, 'F');
-        if ($sheet['school']['footertext'] !== '') {
-            $this->SetTextColor(255, 255, 255);
-            $this->SetFont(self::FONT, '', 7.5);
-            $this->SetXY(self::MARGIN_X, self::PAGE_H - self::BAND_H + 1.5);
-            $this->MultiCell(self::PAGE_W - 2 * self::MARGIN_X, 3.6, $sheet['school']['footertext'], 0, 'C', false, 1);
-        }
+        $this->SetTextColor(...self::TEXT);
     }
 
     /**
-     * "#003f5c" as [0, 63, 92].
+     * One vertical rule of the header.
      *
-     * @param string $hex
-     * @return int[]
+     * @param float $x
+     * @param float $y
+     * @return void
      */
-    public static function rgb(string $hex): array {
-        $hex = ltrim($hex, '#');
-        return [hexdec(substr($hex, 0, 2)), hexdec(substr($hex, 2, 2)), hexdec(substr($hex, 4, 2))];
+    private function rule(float $x, float $y): void {
+        $this->SetFillColor(...self::RULE);
+        $this->Rect($x, $y, 0.75, self::RULE_H, 'F');
+    }
+
+    /**
+     * A header column: a bold line, then regular ones (Poppins 6 pt on 7.5).
+     *
+     * @param float $x
+     * @param float $y
+     * @param float $width
+     * @param string $bold
+     * @param string[] $lines
+     * @return void
+     */
+    private function header_block(float $x, float $y, float $width, string $bold, array $lines): void {
+        $this->SetTextColor(...self::MUTED);
+        $this->SetFont(self::FONT, 'B', 6);
+        $this->SetXY($x, $y);
+        $this->Cell($width, 7.5, $bold, 0, 2, 'L', false, '', 1);
+        $this->SetFont(self::FONT, '', 6);
+        foreach (array_filter(array_map('trim', $lines), 'strlen') as $line) {
+            $this->SetX($x);
+            $this->Cell($width, 7.5, $line, 0, 2, 'L', false, '', 1);
+        }
     }
 }

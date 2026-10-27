@@ -143,11 +143,37 @@ echo html_writer::end_div();
 // The sheet as it stands, so wording changes are seen before the PDF.
 echo html_writer::start_div('col-lg-6');
 echo html_writer::tag('h3', get_string('livepreview', 'local_documents'), ['class' => 'h5']);
-$sheet = html_writer::div(s($bundle['doc']->title), 'local-documents-sheet-title') . $composed['bodyhtml'];
+// The same order as the PDF (pdf::render), at screen size: header, recipient, title, body, signatures.
+$school = $composed['school'];
+$unit = $composed['unit'] ?? \local_documents\local\config::unit((string)$bundle['doc']->unitcode);
+$values = $composed['values'];
+$headerblock = static function(string $bold, array $lines): string {
+    $html = html_writer::div(s($bold), 'fw-bold');
+    foreach (array_filter(array_map('trim', $lines), 'strlen') as $line) {
+        $html .= html_writer::div(s($line));
+    }
+    return html_writer::div($html, 'local-documents-sheet-headblock');
+};
+$sheet = html_writer::div(
+    html_writer::empty_tag('img', ['src' => $OUTPUT->image_url('brand/seal-documents', 'local_documents'), 'alt' => '',
+        'class' => 'local-documents-sheet-seal'])
+    . $headerblock($school['name'], [$school['legalname']])
+    . $headerblock($unit['name'], [$unit['email'], $unit['phone']]),
+    'local-documents-sheet-header');
+if ($bundle['type']->subject === 'none' && trim((string)($values['f.destinatario'] ?? '')) !== '') {
+    $sheet .= html_writer::div(html_writer::div(s($values['f.destinatario']), 'fw-bold')
+        . implode('', array_map(static fn($line) => html_writer::div(s($line)), array_filter([$values['f.cargo'] ?? '',
+            $values['f.institucion'] ?? '', $values['f.correo'] ?? ''], static fn($line) => trim((string)$line) !== ''))),
+        'local-documents-sheet-recipient');
+}
+$sheet .= html_writer::div(s(templates::plain((string)$bundle['doc']->title, $values)), 'local-documents-sheet-title')
+    . html_writer::div($composed['bodyhtml'], 'local-documents-sheet-body');
 $signers = '';
 foreach ($composed['signers'] as $signer) {
     $signers .= html_writer::div(html_writer::div(s($signer['name']) ?: '&nbsp;', 'fw-bold')
-        . html_writer::div(s($signer['title'])), 'local-documents-sheet-signer');
+        . html_writer::div(s($signer['title']), 'local-documents-sheet-muted')
+        . html_writer::div(s(trim(($signer['email'] ?? '') . ' ' . ($signer['phone'] ?? ''))), 'local-documents-sheet-muted'),
+        'local-documents-sheet-signer');
 }
 echo html_writer::div($sheet . html_writer::div($signers, 'local-documents-sheet-signers'), 'local-documents-sheet');
 echo html_writer::tag('details', html_writer::tag('summary', get_string('placeholders', 'local_documents'))

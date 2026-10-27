@@ -207,6 +207,17 @@ class templates {
     }
 
     /**
+     * A line with placeholders as plain text (a title), nothing escaped: TCPDF prints it as text.
+     *
+     * @param string $text
+     * @param array<string, string> $values
+     * @return string
+     */
+    public static function plain(string $text, array $values): string {
+        return trim(html_entity_decode(strip_tags(self::substitute($text, $values)), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    }
+
+    /**
      * The placeholders a body uses that have no value, so the issuer is told before issuing.
      *
      * Conditional placeholders ({{key|...}}) are allowed to be empty.

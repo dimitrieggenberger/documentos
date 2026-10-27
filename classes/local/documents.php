@@ -208,6 +208,7 @@ class documents {
             'values' => $collected['values'],
             'signers' => sources::signers($data, (int)$bundle['tplver']->signatories),
             'school' => config::school(),
+            'unit' => config::unit((string)$doc->unitcode),
             'warnings' => $collected['warnings'],
             'missing' => array_values(array_unique($missing)),
             'blocked' => $bundle['type']->source === 'grades' && $collected['record'] !== null
@@ -276,6 +277,7 @@ class documents {
                 'values' => $composed['values'],
                 'signers' => $composed['signers'],
                 'school' => $composed['school'],
+                'unit' => config::unit($unit),
                 'units' => config::units(),
                 'previousissued' => $previous ? (int)$previous->timeissued : 0,
                 'previousdate' => $previous ? (int)$previous->issuedate : 0,

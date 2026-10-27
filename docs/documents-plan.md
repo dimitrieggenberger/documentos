@@ -80,16 +80,44 @@ years of service, courses taught.
 
 ## 6. The sheet
 
-Letter (215.9 × 279.4 mm), TCPDF through Moodle's `pdflib`. Every measure is
-a constant in `classes/local/letter_pdf.php`. Header: left and right logos,
-school name, lines under it, a rule; optional faint watermark. Number block
-top right. Title, body (justified), signature blocks. Footer on every page:
-QR, number, code, the verification address, validity, page; a coloured band
-with the address. Drafts print BORRADOR across the sheet and no number or QR.
+The letter of the brand manual, Figma "Letter" (EuropaSchule · Design
+Sandbox, frame 39:250, component 109:508), built with TCPDF through Moodle's
+`pdflib` in points, every measure a constant in `classes/local/letter_pdf.php`:
 
-**Figma**: the layout was built from the SEDUC membrete before the Figma frame
-was available. To match it, read the frame (margins, logo box, type sizes,
-QR position, band) and change the constants; nothing else depends on them.
+- US Letter 612 × 792 pt; margins 42.5 pt (1.5 cm) top and bottom, 85 pt
+  (3 cm) left and right; Poppins (Regular, Bold, Italic), converted for TCPDF
+  in `fonts/` (SIL Open Font License, `fonts/OFL.txt`).
+- Header on every page: the seal for documents (66 pt), a rule, the school
+  and its legal name, a rule, the issuing unit with its official e-mail and
+  phone (Poppins 6 pt on 7.5, #6a737b; rules #dee2e6, 0.75 × 32 pt).
+- 110 pt under the header: place and date on the left (letters only) and,
+  on the right, the number with the school's name under it, as page 10 of the
+  instructivo prints it; a correction adds "Versión 2: sustituye a…".
+- Letters: the recipient (name in bold, position, institution, e-mail) 28 pt
+  lower, then 52 pt to the title. Other documents: 40 pt to the title.
+- Title Poppins Bold 14 pt on 17, sentence case ("Constancia de estudio");
+  16 pt; body 8 pt on 10, justified, paragraphs 10 pt apart; grade and
+  attendance tables at 7.5 pt with hairlines.
+- Signature block 8 pt below: per signer 34 pt to sign by hand, name in
+  bold, position, e-mail and phone (secondary grey); the stamp (78 pt, the
+  simplified seal) beside them on issued documents. "Adjunto: …" 36 pt
+  lower when the letter has an attachment.
+- The watermark (380 pt, centred, top at 229 pt, 5 %) behind the page.
+- Footer: europaschule.eu at the bottom left (92 × 15.9 pt); at the bottom
+  right the verification lines (number, code, the verification address,
+  validity, page) at 6 pt and the QR code (40 pt). The QR and the
+  verification lines are this plugin's addition to the frame.
+- Drafts print BORRADOR across the sheet, no number, no QR, no stamp.
+
+The images ship in `pix/brand/` (transparent renders of the brand files the
+Figma components use; local_grades' report card uses the same ones) and can be
+replaced in the settings. The draft page's live preview follows the same
+order at screen size (`styles.css`, "The live preview").
+
+Template version 2 of the 18 ready-made templates (upgrade step 2026102800,
+only where version 1 was never edited) brings sentence-case titles and, for
+oficio, circular and memorándum, the recipient fields (destinatario, cargo,
+institución, correo) and an optional attachment.
 
 ## 7. Retention
 

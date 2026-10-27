@@ -38,7 +38,7 @@ defined('MOODLE_INTERNAL') || die();
  * @return bool
  */
 function local_documents_pluginfile($course, $cm, $context, $filearea, $args, $forcedownload, array $options = []) {
-    if ($context->contextlevel != CONTEXT_SYSTEM || !in_array($filearea, ['logo', 'logo2', 'watermark'], true)) {
+    if ($context->contextlevel != CONTEXT_SYSTEM || !in_array($filearea, array_values(\local_documents\local\config::IMAGE_AREAS), true)) {
         return false;
     }
     require_login();

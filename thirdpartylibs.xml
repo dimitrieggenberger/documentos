@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<libraries>
+  <library>
+    <location>fonts</location>
+    <name>Poppins (converted for TCPDF)</name>
+    <description>The brand font of the sheet, Regular, Bold and Italic, converted with TCPDF_FONTS::addTTFfont().</description>
+    <version>4.003</version>
+    <license>OFL</license>
+    <licenseversion>1.1</licenseversion>
+    <copyrights>
+      <copyright>2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins)</copyright>
+    </copyrights>
+  </library>
+</libraries>

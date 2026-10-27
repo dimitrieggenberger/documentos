@@ -43,15 +43,21 @@ if (!preg_match('~^https?://(localhost|127\.0\.0\.1)(:\d+)?$~', $CFG->wwwroot)) 
 }
 
 // The school.
+foreach (['headerlines', 'footertext', 'brandcolor'] as $old) {
+    unset_config($old, 'local_documents');
+}
 foreach ([
     'schoolname' => 'Instituto Bilingüe Valle Verde',
     'sacecode' => '050100099M01',
     'jornada' => 'JM',
     'city' => 'San Pedro Sula',
     'department' => 'Cortés',
-    'headerlines' => "Educación Prebásica, Básica y Media\nColonia Los Álamos, San Pedro Sula, Cortés",
-    'footertext' => 'Tel. (504) 0000-0000 · secretaria@example.invalid · www.example.invalid',
-    'signatories' => "Lic. Rosa Gómez | Directora\nProf. Elena Castillo | Secretaria",
+    'legalname' => 'Educación Valle Verde S. de R.L.',
+    'units' => "DCE | Dirección del Centro Educativo | direccion@example.invalid | (+504) 0000-0001\n"
+        . "SDCE | Subdirección del Centro Educativo | subdireccion@example.invalid | (+504) 0000-0002\n"
+        . "SCE | Secretaría del Centro Educativo | secretaria@example.invalid | (+504) 0000-0003",
+    'signatories' => "Lic. Rosa Gómez | Directora | direccion@example.invalid | (+504) 0000-0001\n"
+        . "Prof. Elena Castillo | Secretaria | secretaria@example.invalid | (+504) 0000-0003",
     'fieldidnumber' => 'dni',
     'fieldgender' => 'sexo',
     'fieldbirthdate' => 'fechanac',

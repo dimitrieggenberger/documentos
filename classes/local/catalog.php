@@ -93,16 +93,22 @@ class catalog {
         $certclosing = "Y para los fines legales que {{g.al}} interesad{{g.o}} estime convenientes, se extiende la "
             . "presente certificación en la ciudad de {{school.city}}, {{date.words}}.";
         $purpose = "proposito | Para presentar ante (opcional) | text | |";
-        $letterfields = "destinatario | Destinatario | text | | required\n"
+        // The letter of the brand manual: the recipient is a block of its own (name, position,
+        // institution, e-mail) before the title; an attachment line closes it.
+        $recipient = "destinatario | Destinatario | text | | required\n"
             . "cargo | Cargo del destinatario | text | |\n"
             . "institucion | Institución | text | |\n"
+            . "correo | Correo del destinatario | text | |";
+        $attachment = "adjunto | Adjunto (opcional) | text | |";
+        $letterfields = "$recipient\n"
             . "asunto | Asunto | text | | required\n"
-            . "texto | Texto | textarea | | required";
+            . "saludo | Saludo | text | Estimado(a) señor(a): | required\n"
+            . "texto | Texto | textarea | | required\n$attachment";
 
         return [
             'constancia_estudio' => [
                 'series' => 'CONSES', 'name' => 'Constancia de Estudio', 'subject' => 'student', 'source' => 'basic',
-                'validity' => 90, 'title' => 'CONSTANCIA DE ESTUDIO', 'signatories' => 1, 'fields' => $purpose,
+                'validity' => 90, 'title' => 'Constancia de estudio', 'signatories' => 1, 'fields' => $purpose,
                 'body' => "$intro\n\nQue {{g.el}} estudiante **{{holder.name}}**, con número de identidad "
                     . "{{holder.idnumber}}, está matriculad{{g.o}} y cursa el **{{student.gradename}}** en esta "
                     . "institución durante el año lectivo {{student.yearlabel}}, en la {{school.jornada}}."
@@ -110,7 +116,7 @@ class catalog {
             ],
             'constancia_matricula' => [
                 'series' => 'CONSMAT', 'name' => 'Constancia de Matrícula', 'subject' => 'student', 'source' => 'basic',
-                'validity' => 90, 'title' => 'CONSTANCIA DE MATRÍCULA', 'signatories' => 1,
+                'validity' => 90, 'title' => 'Constancia de matrícula', 'signatories' => 1,
                 'fields' => "fechamatricula | Fecha de matrícula | date | |\n$purpose",
                 'body' => "$intro\n\nQue {{g.el}} estudiante **{{holder.name}}**, con número de identidad "
                     . "{{holder.idnumber}}, se encuentra debidamente matriculad{{g.o}} en el **{{student.gradename}}** "
@@ -119,7 +125,7 @@ class catalog {
             ],
             'constancia_conducta' => [
                 'series' => 'CONSCOND', 'name' => 'Constancia de Conducta', 'subject' => 'student', 'source' => 'basic',
-                'validity' => 90, 'title' => 'CONSTANCIA DE CONDUCTA', 'signatories' => 1,
+                'validity' => 90, 'title' => 'Constancia de conducta', 'signatories' => 1,
                 'fields' => "conducta | Conducta | select | Muy buena | Excelente;Muy buena;Buena;Satisfactoria\n$purpose",
                 'body' => "$intro\n\nQue {{g.el}} estudiante **{{holder.name}}**, con número de identidad "
                     . "{{holder.idnumber}}, del **{{student.gradename}}**, año lectivo {{student.yearlabel}}, ha observado "
@@ -128,7 +134,7 @@ class catalog {
             ],
             'constancia_notas' => [
                 'series' => 'CONSN', 'name' => 'Constancia de Notas', 'subject' => 'student', 'source' => 'grades',
-                'validity' => 90, 'title' => 'CONSTANCIA DE NOTAS', 'signatories' => 1, 'fields' => $purpose,
+                'validity' => 90, 'title' => 'Constancia de notas', 'signatories' => 1, 'fields' => $purpose,
                 'body' => "$intro\n\nQue {{g.el}} estudiante **{{holder.name}}**, con número de identidad "
                     . "{{holder.idnumber}}, del **{{student.gradename}}**, año lectivo {{student.yearlabel}}, ha obtenido "
                     . "las siguientes calificaciones publicadas hasta el {{student.lastquarter}}:\n\n{{tabla.notas}}"
@@ -136,7 +142,7 @@ class catalog {
             ],
             'constancia_solvencia' => [
                 'series' => 'CONSSOL', 'name' => 'Constancia de Solvencia', 'subject' => 'student', 'source' => 'basic',
-                'validity' => 30, 'title' => 'CONSTANCIA DE SOLVENCIA', 'signatories' => 1,
+                'validity' => 30, 'title' => 'Constancia de solvencia', 'signatories' => 1,
                 'fields' => "hasta | Solvente hasta el mes de | text | |\n$purpose",
                 'body' => "$intro\n\nQue {{g.el}} estudiante **{{holder.name}}**, con número de identidad "
                     . "{{holder.idnumber}}, del **{{student.gradename}}**, se encuentra solvente con sus obligaciones "
@@ -144,7 +150,7 @@ class catalog {
             ],
             'constancia_traslado' => [
                 'series' => 'CONSTL', 'name' => 'Constancia de Traslado', 'subject' => 'student', 'source' => 'basic',
-                'validity' => 90, 'title' => 'CONSTANCIA DE TRASLADO', 'signatories' => 1,
+                'validity' => 90, 'title' => 'Constancia de traslado', 'signatories' => 1,
                 'fields' => "destino | Centro educativo de destino | text | | required",
                 'body' => "$intro\n\nQue {{g.el}} estudiante **{{holder.name}}**, con número de identidad "
                     . "{{holder.idnumber}}, cursó en esta institución el **{{student.gradename}}** durante el año lectivo "
@@ -153,7 +159,7 @@ class catalog {
             ],
             'constancia_cupo' => [
                 'series' => 'CONSCU', 'name' => 'Constancia de Cupo', 'subject' => 'person', 'source' => 'basic',
-                'validity' => 60, 'title' => 'CONSTANCIA DE CUPO', 'signatories' => 1,
+                'validity' => 60, 'title' => 'Constancia de cupo', 'signatories' => 1,
                 'fields' => "grado | Grado al que ingresa | text | | required\nanio | Año lectivo | text | | required",
                 'body' => "$intro\n\nQue para {{g.el}} estudiante **{{holder.name}}**{{holder.idnumber|, con número de "
                     . "identidad }}, existe cupo disponible en el **{{f.grado}}** de esta institución para el año "
@@ -161,7 +167,7 @@ class catalog {
             ],
             'certificacion_estudios' => [
                 'series' => 'CERES', 'name' => 'Certificación de Estudios', 'subject' => 'student', 'source' => 'grades',
-                'validity' => 0, 'title' => 'CERTIFICACIÓN DE ESTUDIOS', 'signatories' => 2, 'fields' => '',
+                'validity' => 0, 'title' => 'Certificación de estudios', 'signatories' => 2, 'fields' => '',
                 'body' => "$certintro\n\nQue {{g.el}} estudiante **{{holder.name}}**, con número de identidad "
                     . "{{holder.idnumber}}, cursó el **{{student.gradename}}** en esta institución durante el año lectivo "
                     . "{{student.yearlabel}}, en la {{school.jornada}}, con las calificaciones que se detallan:"
@@ -169,7 +175,7 @@ class catalog {
             ],
             'certificacion_notas' => [
                 'series' => 'CERNOT', 'name' => 'Certificación de Notas', 'subject' => 'student', 'source' => 'grades',
-                'validity' => 0, 'title' => 'CERTIFICACIÓN DE NOTAS', 'signatories' => 2, 'fields' => '',
+                'validity' => 0, 'title' => 'Certificación de notas', 'signatories' => 2, 'fields' => '',
                 'body' => "$certintro\n\nQue en los registros de calificaciones de esta institución consta que "
                     . "{{g.el}} estudiante **{{holder.name}}**, con número de identidad {{holder.idnumber}}, del "
                     . "**{{student.gradename}}**, año lectivo {{student.yearlabel}}, obtuvo las siguientes "
@@ -177,7 +183,7 @@ class catalog {
             ],
             'certificacion_conducta' => [
                 'series' => 'CERCOND', 'name' => 'Certificación de Conducta', 'subject' => 'student', 'source' => 'basic',
-                'validity' => 0, 'title' => 'CERTIFICACIÓN DE CONDUCTA', 'signatories' => 2,
+                'validity' => 0, 'title' => 'Certificación de conducta', 'signatories' => 2,
                 'fields' => "conducta | Conducta | select | Muy buena | Excelente;Muy buena;Buena;Satisfactoria",
                 'body' => "$certintro\n\nQue según los registros de esta institución, {{g.el}} estudiante "
                     . "**{{holder.name}}**, con número de identidad {{holder.idnumber}}, del **{{student.gradename}}**, "
@@ -185,7 +191,7 @@ class catalog {
             ],
             'constancia_trabajo_docente' => [
                 'series' => 'CONSTPD', 'name' => 'Constancia de Trabajo Personal Docente', 'subject' => 'staff',
-                'source' => 'basic', 'validity' => 90, 'title' => 'CONSTANCIA DE TRABAJO', 'signatories' => 1,
+                'source' => 'basic', 'validity' => 90, 'title' => 'Constancia de trabajo', 'signatories' => 1,
                 'fields' => "salario | Salario mensual (opcional) | text | |\n$purpose",
                 'body' => "$intro\n\nQue {{g.el}} docente **{{holder.name}}**, con número de identidad "
                     . "{{holder.idnumber}}, labora en esta institución como **{{staff.position}}** desde el "
@@ -194,7 +200,7 @@ class catalog {
             ],
             'constancia_trabajo_administrativo' => [
                 'series' => 'CONSTPA', 'name' => 'Constancia de Trabajo Personal Administrativo', 'subject' => 'staff',
-                'source' => 'basic', 'validity' => 90, 'title' => 'CONSTANCIA DE TRABAJO', 'signatories' => 1,
+                'source' => 'basic', 'validity' => 90, 'title' => 'Constancia de trabajo', 'signatories' => 1,
                 'fields' => "salario | Salario mensual (opcional) | text | |\n$purpose",
                 'body' => "$intro\n\nQue **{{holder.name}}**, con número de identidad {{holder.idnumber}}, labora en "
                     . "esta institución como **{{staff.position}}** desde el {{staff.startdate}}."
@@ -202,7 +208,7 @@ class catalog {
             ],
             'certificacion_trabajo_docente' => [
                 'series' => 'CERTRAD', 'name' => 'Certificación de Trabajo Docente', 'subject' => 'staff',
-                'source' => 'basic', 'validity' => 0, 'title' => 'CERTIFICACIÓN DE TRABAJO DOCENTE', 'signatories' => 1,
+                'source' => 'basic', 'validity' => 0, 'title' => 'Certificación de trabajo docente', 'signatories' => 1,
                 'fields' => '',
                 'body' => "La Dirección del **{{school.name}}**, código SACE {{school.sace}}, de la ciudad de "
                     . "{{school.city}}, departamento de {{school.department}}:\n\n= **CERTIFICA:**\n\nQue {{g.el}} "
@@ -212,38 +218,36 @@ class catalog {
             ],
             'constancia_anios_servicio' => [
                 'series' => 'CONSAS', 'name' => 'Constancia de Años de Servicio', 'subject' => 'staff', 'source' => 'basic',
-                'validity' => 90, 'title' => 'CONSTANCIA DE AÑOS DE SERVICIO', 'signatories' => 1, 'fields' => $purpose,
+                'validity' => 90, 'title' => 'Constancia de años de servicio', 'signatories' => 1, 'fields' => $purpose,
                 'body' => "$intro\n\nQue **{{holder.name}}**, con número de identidad {{holder.idnumber}}, ha "
                     . "laborado en esta institución como **{{staff.position}}** desde el {{staff.startdate}}, "
                     . "acumulando a la fecha **{{staff.years}}** de servicio.\n\n$closing",
             ],
             'oficio' => [
                 'series' => 'OF', 'name' => 'Oficio', 'subject' => 'none', 'source' => 'basic', 'validity' => 0,
-                'title' => 'OFICIO', 'signatories' => 1, 'fields' => $letterfields,
-                'body' => "**{{f.destinatario}}**\n{{f.cargo}}\n{{f.institucion}}\nSu despacho\n\n"
-                    . "**Asunto:** {{f.asunto}}\n\n{{f.texto}}\n\nAtentamente,",
+                'title' => 'Oficio', 'signatories' => 1, 'fields' => $letterfields,
+                'body' => "**Asunto:** {{f.asunto}}\n\n{{f.saludo}}\n\n{{f.texto}}\n\nAtentamente,",
             ],
             'circular' => [
                 'series' => 'CIR', 'name' => 'Circular', 'subject' => 'none', 'source' => 'basic', 'validity' => 0,
-                'title' => 'CIRCULAR', 'signatories' => 1,
+                'title' => 'Circular', 'signatories' => 1,
                 'fields' => "destinatario | Dirigida a | text | Padres de familia y personal docente | required\n"
-                    . "asunto | Asunto | text | | required\ntexto | Texto | textarea | | required",
-                'body' => "**Para:** {{f.destinatario}}\n**Asunto:** {{f.asunto}}\n\n{{f.texto}}\n\nAtentamente,",
+                    . "asunto | Asunto | text | | required\ntexto | Texto | textarea | | required\n$attachment",
+                'body' => "**Asunto:** {{f.asunto}}\n\n{{f.texto}}\n\nAtentamente,",
             ],
             'memorandum' => [
                 'series' => 'MM', 'name' => 'Memorándum', 'subject' => 'none', 'source' => 'basic', 'validity' => 0,
-                'title' => 'MEMORÁNDUM', 'signatories' => 1,
-                'fields' => "destinatario | Para | text | | required\nde | De | text | Dirección | required\n"
-                    . "asunto | Asunto | text | | required\ntexto | Texto | textarea | | required",
-                'body' => "**Para:** {{f.destinatario}}\n**De:** {{f.de}}\n**Asunto:** {{f.asunto}}\n"
-                    . "**Fecha:** {{date.long}}\n\n{{f.texto}}",
+                'title' => 'Memorándum', 'signatories' => 1,
+                'fields' => "destinatario | Para | text | | required\ncargo | Cargo | text | |\nde | De | text | Dirección | required\n"
+                    . "asunto | Asunto | text | | required\ntexto | Texto | textarea | | required\n$attachment",
+                'body' => "**De:** {{f.de}}\n**Asunto:** {{f.asunto}}\n\n{{f.texto}}",
             ],
             'convenio' => [
                 'series' => 'CONV', 'name' => 'Convenio', 'subject' => 'none', 'source' => 'basic', 'validity' => 0,
-                'title' => 'CONVENIO', 'signatories' => 2,
-                'fields' => "destinatario | Parte contraparte | text | | required\nasunto | Objeto del convenio | text | | required\n"
-                    . "texto | Cláusulas | textarea | | required",
-                'body' => "Convenio entre el **{{school.name}}** y **{{f.destinatario}}**.\n\n**Objeto:** {{f.asunto}}"
+                'title' => 'Convenio', 'signatories' => 2,
+                'fields' => "contraparte | Parte contraparte | text | | required\nasunto | Objeto del convenio | text | | required\n"
+                    . "texto | Cláusulas | textarea | | required\n$attachment",
+                'body' => "Convenio entre el **{{school.name}}** y **{{f.contraparte}}**.\n\n**Objeto:** {{f.asunto}}"
                     . "\n\n{{f.texto}}\n\nFirmado en la ciudad de {{school.city}}, {{date.words}}.",
             ],
         ];
@@ -295,5 +299,40 @@ class catalog {
                 'changenote' => 'Plantilla inicial.',
             ], 0);
         }
+    }
+
+    /**
+     * Give every ready-made template the school never changed the current catalogue text.
+     *
+     * A template someone edited is left alone: the new text is only offered
+     * where the first version is still the one this plugin installed. It is a
+     * new version with its change note, like any other edit.
+     *
+     * @param string $changenote
+     * @return int how many templates got a new version
+     */
+    public static function refresh_untouched(string $changenote): int {
+        global $DB;
+        $count = 0;
+        foreach (self::types() as $shortname => $type) {
+            $record = $DB->get_record('local_documents_type', ['shortname' => $shortname]);
+            if (!$record) {
+                continue;
+            }
+            $current = $DB->get_record('local_documents_tplver', ['id' => $record->currentversion]);
+            if (!$current || (int)$current->version !== 1 || (int)$current->createdby !== 0) {
+                continue;
+            }
+            templates::save_version((int)$record->id, [
+                'title' => $type['title'],
+                'body' => $type['body'],
+                'fields' => $type['fields'],
+                'signatories' => (int)$type['signatories'],
+                'allowbodyedit' => (int)$current->allowbodyedit,
+                'changenote' => $changenote,
+            ], 0);
+            $count++;
+        }
+        return $count;
     }
 }

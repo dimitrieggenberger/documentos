@@ -39,6 +39,8 @@ if ($hassiteconfig) {
         get_string('settingschool_desc', 'local_documents')));
     $settings->add(new admin_setting_configtext('local_documents/schoolname', get_string('schoolname', 'local_documents'),
         get_string('schoolname_desc', 'local_documents'), '', PARAM_TEXT));
+    $settings->add(new admin_setting_configtext('local_documents/legalname', get_string('legalname', 'local_documents'),
+        get_string('legalname_desc', 'local_documents'), '', PARAM_TEXT));
     $settings->add(new admin_setting_configtext('local_documents/sacecode', get_string('sacecode', 'local_documents'),
         get_string('sacecode_desc', 'local_documents'), '', PARAM_ALPHANUM));
     $settings->add(new admin_setting_configselect('local_documents/jornada', get_string('jornada', 'local_documents'),
@@ -56,13 +58,7 @@ if ($hassiteconfig) {
 
     $settings->add(new admin_setting_heading('local_documents/letterheadheading',
         get_string('settingletterhead', 'local_documents'), get_string('settingletterhead_desc', 'local_documents')));
-    $settings->add(new admin_setting_configtextarea('local_documents/headerlines', get_string('headerlines', 'local_documents'),
-        get_string('headerlines_desc', 'local_documents'), '', PARAM_TEXT, 60, 3));
-    $settings->add(new admin_setting_configtextarea('local_documents/footertext', get_string('footertext', 'local_documents'),
-        get_string('footertext_desc', 'local_documents'), '', PARAM_TEXT, 60, 2));
-    $settings->add(new admin_setting_configcolourpicker('local_documents/brandcolor', get_string('brandcolor', 'local_documents'),
-        '', '#003f5c'));
-    foreach (['logo', 'logo2', 'watermark'] as $area) {
+    foreach (\local_documents\local\config::IMAGE_AREAS as $area) {
         $settings->add(new admin_setting_configstoredfile('local_documents/' . $area, get_string($area, 'local_documents'),
             get_string($area . '_desc', 'local_documents'), $area, 0,
             ['maxfiles' => 1, 'accepted_types' => ['.png', '.jpg', '.jpeg']]));

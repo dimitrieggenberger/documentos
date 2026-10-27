@@ -27,7 +27,7 @@ The shared rulebook for sibling plugins is `docs/shared-plugin-instructions.md` 
 - `classes/local/documents.php`: draft, issue, revise, recall, log
 - `classes/local/templates.php`: template versions, markup, placeholders, diff
 - `classes/local/sources.php`: placeholder values; reads `\local_grades\local\documents_bridge` behind `class_exists`
-- `classes/local/pdf.php`, `classes/local/letter_pdf.php`: the letter-size sheet
+- `classes/local/pdf.php`, `classes/local/letter_pdf.php`: the letter-size sheet, the brand manual's letter (Figma frame 39:250); measures are constants in `letter_pdf.php`, Poppins in `fonts/`, brand images in `pix/brand/`
 - `classes/local/verify.php`: the public answer and the rate limit
 - `classes/local/catalog.php`: seeded series and templates (Spanish: the documents' language)
 - `classes/local/spanish.php`: dates in words, grade names

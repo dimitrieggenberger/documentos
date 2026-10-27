@@ -92,49 +92,82 @@
     width: 100%;
 }
 
-/* The live preview: a letter-proportioned sheet, not the PDF itself. */
+/* The live preview: the brand letter (pdf.php) at screen size, not the PDF itself. */
 #page-local-documents-area .local-documents-sheet {
     background: #fff;
-    color: #16212c;
+    color: #1d2125;
     border: 1px solid var(--ld-border);
     border-radius: var(--ld-radius-sm);
     box-shadow: var(--ld-shadow);
-    padding: 32px 40px;
-    font-size: var(--ld-text-sm);
-    line-height: 1.55;
+    padding: 24px 48px 32px;
+    font-family: Poppins, var(--bs-body-font-family, sans-serif);
+    font-size: 12px;
+    line-height: 1.25;
+}
+
+#page-local-documents-area .local-documents-sheet-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 40px;
+    color: #6a737b;
+    font-size: 9px;
+}
+
+#page-local-documents-area .local-documents-sheet-seal {
+    width: 56px;
+    height: 56px;
+}
+
+#page-local-documents-area .local-documents-sheet-headblock {
+    border-left: 1px solid #dee2e6;
+    padding-left: 16px;
+    min-height: 28px;
+}
+
+#page-local-documents-area .local-documents-sheet-recipient {
+    margin-bottom: 24px;
 }
 
 #page-local-documents-area .local-documents-sheet-title {
-    text-align: center;
     font-weight: 700;
-    font-size: 18px;
-    margin-bottom: 16px;
+    font-size: 20px;
+    margin-bottom: 12px;
+}
+
+#page-local-documents-area .local-documents-sheet-body p {
+    margin: 0 0 12px;
+}
+
+#page-local-documents-area .local-documents-sheet-muted {
+    color: #6a737b;
 }
 
 #page-local-documents-area .local-documents-sheet table {
     width: 100%;
-    margin: 8px 0 16px;
+    margin: 0 0 12px;
     border-collapse: collapse;
+    font-size: 11px;
 }
 
 #page-local-documents-area .local-documents-sheet td,
 #page-local-documents-area .local-documents-sheet th {
-    border: 1px solid #9aa5b1;
+    border-bottom: 1px solid #dee2e6;
     padding: 2px 4px;
+}
+
+#page-local-documents-area .local-documents-sheet th {
+    color: #6a737b;
 }
 
 #page-local-documents-area .local-documents-sheet-signers {
     display: flex;
-    justify-content: space-around;
     gap: 24px;
-    margin-top: 48px;
+    margin-top: 40px;
 }
 
 #page-local-documents-area .local-documents-sheet-signer {
-    border-top: 1px solid #16212c;
     min-width: 40%;
-    padding-top: 4px;
-    text-align: center;
 }
 
 #page-local-documents-area .local-documents-diff {
@@ -203,6 +236,8 @@
 
     #page-local-documents-area .local-documents-draft .mform .fitem > .col-md-3 {
         padding-bottom: 4px;
+        /* Space right-aligns the label column with text-md-right, an !important utility. */
+        text-align: left !important;
     }
 
     #page-local-documents-area .local-documents-draft .local-documents-sheet {

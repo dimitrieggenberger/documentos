@@ -262,23 +262,17 @@ class sources {
             return '<p style="text-align:center;"><i>' . s(get_string_manager()->get_string('nogradespublished',
                 'local_documents', null, 'es')) . '</i></p>';
         }
-        $head = '#eef2f6';
-        $html = '<table border="0.3" cellpadding="3" style="border-color:#9aa5b1;font-size:9.5pt;">'
-            . '<thead><tr style="background-color:' . $head . ';font-weight:bold;">'
-            . '<th width="46%">Asignatura</th>';
-        foreach (['I', 'II', 'III', 'IV'] as $roman) {
-            $html .= '<th width="10%" align="center">' . $roman . '</th>';
-        }
-        $html .= '<th width="14%" align="center">Final</th></tr></thead><tbody>';
+        $html = self::table_head('Asignatura', 'Final');
         foreach ($record['courses'] as $course) {
-            $html .= '<tr><td width="46%">' . s($course['name']) . '</td>';
+            $html .= '<tr><td width="46%"' . self::CELL . '>' . s($course['name']) . '</td>';
             for ($i = 1; $i <= 4; $i++) {
                 $cell = !empty($course['held'][$i]) ? 'Pend.' : self::grade($course['quarters'][$i]);
-                $html .= '<td width="10%" align="center">' . s($cell) . '</td>';
+                $html .= '<td width="10%" align="center"' . self::CELL . '>' . s($cell) . '</td>';
             }
-            $html .= '<td width="14%" align="center"><b>' . s(self::grade($course['total'])) . '</b></td></tr>';
+            $html .= '<td width="14%" align="center"' . self::CELL . '><b>' . s(self::grade($course['total']))
+                . '</b></td></tr>';
         }
-        return $html . '</tbody></table>';
+        return $html . self::TABLE_END;
     }
 
     /**
@@ -291,19 +285,38 @@ class sources {
         if (empty($record['attendance'])) {
             return '';
         }
-        $html = '<table border="0.3" cellpadding="3" style="border-color:#9aa5b1;font-size:9.5pt;">'
-            . '<thead><tr style="background-color:#eef2f6;font-weight:bold;"><th width="46%">Inasistencias (días)</th>';
-        foreach (['I', 'II', 'III', 'IV'] as $roman) {
-            $html .= '<th width="10%" align="center">' . $roman . '</th>';
-        }
-        $html .= '<th width="14%" align="center">Año</th></tr></thead><tbody>';
+        $html = self::table_head('Inasistencias (días)', 'Año');
         foreach ($record['attendance'] as $row) {
-            $html .= '<tr><td width="46%">' . s($row['label']) . '</td>';
+            $html .= '<tr><td width="46%"' . self::CELL . '>' . s($row['label']) . '</td>';
             foreach (array_values($row['values']) as $i => $value) {
-                $html .= '<td width="' . ($i < 4 ? '10' : '14') . '%" align="center">' . s((string)$value) . '</td>';
+                $html .= '<td width="' . ($i < 4 ? '10' : '14') . '%" align="center"' . self::CELL . '>'
+                    . s((string)$value) . '</td>';
             }
             $html .= '</tr>';
         }
-        return $html . '</tbody></table>';
+        return $html . self::TABLE_END;
+    }
+
+    /** @var string A table cell of the sheet: hairline in the rule grey of the brand letter. */
+    const CELL = ' style="border-bottom:0.5pt solid #dee2e6;"';
+
+    /** @var string The end of a table, then the body's paragraph gap. */
+    const TABLE_END = '</tbody></table><p style="font-size:1pt;">&nbsp;</p>';
+
+    /**
+     * The head of a quarter table, Poppins 7 pt in the secondary grey.
+     *
+     * @param string $first
+     * @param string $last
+     * @return string
+     */
+    private static function table_head(string $first, string $last): string {
+        $style = ' style="color:#6a737b;font-weight:bold;border-bottom:0.75pt solid #dee2e6;"';
+        $html = '<table cellpadding="2" style="font-size:7.5pt;"><thead><tr><th width="46%"' . $style . '>'
+            . s($first) . '</th>';
+        foreach (['I', 'II', 'III', 'IV'] as $roman) {
+            $html .= '<th width="10%" align="center"' . $style . '>' . $roman . '</th>';
+        }
+        return $html . '<th width="14%" align="center"' . $style . '>' . s($last) . '</th></tr></thead><tbody>';
     }
 }
