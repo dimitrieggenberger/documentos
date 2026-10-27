@@ -30,6 +30,7 @@ use local_documents\local\ui;
 
 require_login();
 $context = context_system::instance();
+$PAGE->set_context($context);
 require_capability('local/documents:managetemplates', $context);
 
 $url = new moodle_url('/local/documents/series.php');

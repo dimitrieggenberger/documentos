@@ -30,6 +30,7 @@ use local_documents\local\ui;
 
 require_login();
 $context = context_system::instance();
+$PAGE->set_context($context);
 require_capability('local/documents:managetemplates', $context);
 
 $id = optional_param('id', 0, PARAM_INT);

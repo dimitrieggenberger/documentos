@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.1] - 2026-10-27
+
+### Fixed
+
+- **Page context set before forms are built** (draft, record, template and download pages), so no "$PAGE->context was not set" notice. The sim scenario picks the seeded Valentina Ríos Castro, now that the full school has two students called Valentina Ríos.
+
 ## [0.1.0] - 2026-10-27
 
 ### Added

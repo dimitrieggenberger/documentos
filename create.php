@@ -29,6 +29,7 @@ use local_documents\local\ui;
 
 require_login();
 $context = context_system::instance();
+$PAGE->set_context($context);
 require_capability('local/documents:issue', $context);
 
 $typeid = optional_param('type', 0, PARAM_INT);

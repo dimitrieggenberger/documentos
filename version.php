@@ -25,7 +25,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'local_documents';
-$plugin->version = 2026102700;
+$plugin->version = 2026102701;
 $plugin->requires = 2026042001; // Moodle 5.2.1.
 $plugin->maturity = MATURITY_ALPHA;
-$plugin->release = '0.1.0';
+$plugin->release = '0.1.1';

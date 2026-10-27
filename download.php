@@ -29,6 +29,7 @@ use local_documents\local\pdf;
 
 require_login();
 $context = context_system::instance();
+$PAGE->set_context($context);
 require_capability('local/documents:view', $context);
 
 $id = required_param('id', PARAM_INT);

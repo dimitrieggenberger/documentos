@@ -36,10 +36,10 @@ const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (
   check(await p.locator('.local-documents-typecard').count() >= 15, 'new: the document types as cards');
   await shot(p, 'documents-new');
   await p.click('.local-documents-typecard:has-text("Constancia de Estudio")');
-  await p.fill('#ld-person', 'Ríos');
+  await p.fill('#ld-person', 'Ríos Castro');
   await Promise.all([p.waitForNavigation(), p.press('#ld-person', 'Enter')]);
   check(await p.locator('.local-documents-people li').count() >= 1, 'new: the student is found');
-  await Promise.all([p.waitForNavigation(), p.click('.local-documents-people li:has-text("Valentina") button')]);
+  await Promise.all([p.waitForNavigation(), p.click('.local-documents-people li:has-text("Valentina Ríos Castro") button')]);
   check(/edit\.php/.test(p.url()), 'draft: opened');
   check((await p.inputValue('#id_holderidnumber')).startsWith('0501-2010-'), 'draft: identity number from the profile');
   check(await p.inputValue('#id_gender') === 'F', 'draft: wording from the profile (la estudiante)');
