@@ -8,7 +8,7 @@ This repository is the source of truth for the Moodle plugin `local_documents`.
 - Plugin type: `local`
 - Component: `local_documents`
 - Moodle install path: `local/documents`
-- GitHub repo: `dimitrieggenberger/moodle-local-documents`
+- GitHub repo: `dimitrieggenberger/documentos`
 - Installable ZIPs are build artifacts only, created by `build-zip.ps1` (it also builds the WordPress plugin ZIP)
 
 The shared rulebook for sibling plugins is `docs/shared-plugin-instructions.md` in `dimitrieggenberger/moodle-local-grades`; follow it (UI reference, styling hierarchy, Working Screens, sizes, mockups, sim). The design record of this plugin is `docs/documents-plan.md`.
@@ -48,6 +48,6 @@ It must not own or recalculate: grades, publication, holds, attendance (read fro
 
 ## Simulation Moodle
 
-- `sim sync moodle-local-documents` (moodle-sim's `plugins.conf` line leaves `wordpress/` out), seed `dev/sim/seed_documents.php` (secretary `ecastillo` / `Sim-Docs-2026!`, director `rgomez` / `Test123!`).
+- `sim sync documentos` (moodle-sim's `plugins.conf` line leaves `wordpress/` out), seed `dev/sim/seed_documents.php` (secretary `ecastillo` / `Sim-Docs-2026!`, director `rgomez` / `Test123!`).
 - Scenario: `node dev/sim/scenario_documents.js`.
 - PHPUnit: `sim phpunit --testsuite local_documents_testsuite`.
