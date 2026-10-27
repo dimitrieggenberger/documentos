@@ -1,0 +1,212 @@
+/* local_documents: every rule scoped to the plugin's page id. */
+#page-local-documents-area {
+    --ld-text-xs: 13px;
+    --ld-text-sm: 14px;
+    --ld-text-2xl: 24px;
+    --ld-radius-sm: 8px;
+    --ld-radius: 14px;
+    --ld-border: var(--lg-border, #e3e8ef);
+    --ld-muted: var(--lg-muted, #5c6670);
+    --ld-surface: var(--lg-surface, #fff);
+    --ld-shadow: 0 1px 2px rgba(16, 42, 67, .06), 0 4px 16px rgba(16, 42, 67, .06);
+    --ld-shadow-hover: 0 2px 4px rgba(16, 42, 67, .08), 0 10px 28px rgba(16, 42, 67, .10);
+}
+
+#page-local-documents-area .local-documents-tiles {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin: 16px 0 24px;
+}
+
+#page-local-documents-area .local-documents-tile,
+#page-local-documents-area .local-documents-card {
+    background: var(--ld-surface);
+    border: 1px solid var(--ld-border);
+    border-radius: var(--ld-radius);
+    box-shadow: var(--ld-shadow);
+    padding: 16px 20px;
+}
+
+#page-local-documents-area .local-documents-tile-number {
+    font-size: var(--ld-text-2xl);
+    font-weight: 700;
+    line-height: 1.25;
+}
+
+#page-local-documents-area .local-documents-tile-label {
+    color: var(--ld-muted);
+    font-size: var(--ld-text-xs);
+}
+
+#page-local-documents-area .local-documents-number {
+    font-family: SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: var(--ld-text-sm);
+    white-space: nowrap;
+}
+
+#page-local-documents-area .local-documents-record th {
+    color: var(--ld-muted);
+    font-weight: 500;
+    width: 30%;
+}
+
+#page-local-documents-area .local-documents-typegrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+}
+
+#page-local-documents-area .local-documents-typecard {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: var(--ld-surface);
+    border: 1px solid var(--ld-border);
+    border-radius: var(--ld-radius);
+    box-shadow: var(--ld-shadow);
+    padding: 16px;
+    color: inherit;
+    text-decoration: none;
+}
+
+#page-local-documents-area .local-documents-typecard:hover,
+#page-local-documents-area .local-documents-typecard:focus {
+    box-shadow: var(--ld-shadow-hover);
+}
+
+#page-local-documents-area .local-documents-typecode {
+    color: var(--ld-muted);
+    font-size: 12px;
+    letter-spacing: .06em;
+    font-weight: 700;
+}
+
+#page-local-documents-area .local-documents-typename {
+    font-weight: 500;
+}
+
+#page-local-documents-area .local-documents-bodyfield {
+    font-family: SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: var(--ld-text-xs);
+    width: 100%;
+}
+
+/* The live preview: a letter-proportioned sheet, not the PDF itself. */
+#page-local-documents-area .local-documents-sheet {
+    background: #fff;
+    color: #16212c;
+    border: 1px solid var(--ld-border);
+    border-radius: var(--ld-radius-sm);
+    box-shadow: var(--ld-shadow);
+    padding: 32px 40px;
+    font-size: var(--ld-text-sm);
+    line-height: 1.55;
+}
+
+#page-local-documents-area .local-documents-sheet-title {
+    text-align: center;
+    font-weight: 700;
+    font-size: 18px;
+    margin-bottom: 16px;
+}
+
+#page-local-documents-area .local-documents-sheet table {
+    width: 100%;
+    margin: 8px 0 16px;
+    border-collapse: collapse;
+}
+
+#page-local-documents-area .local-documents-sheet td,
+#page-local-documents-area .local-documents-sheet th {
+    border: 1px solid #9aa5b1;
+    padding: 2px 4px;
+}
+
+#page-local-documents-area .local-documents-sheet-signers {
+    display: flex;
+    justify-content: space-around;
+    gap: 24px;
+    margin-top: 48px;
+}
+
+#page-local-documents-area .local-documents-sheet-signer {
+    border-top: 1px solid #16212c;
+    min-width: 40%;
+    padding-top: 4px;
+    text-align: center;
+}
+
+#page-local-documents-area .local-documents-diff {
+    font-family: SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: var(--ld-text-xs);
+    border: 1px solid var(--ld-border);
+    border-radius: var(--ld-radius-sm);
+    padding: 8px 12px;
+    white-space: pre-wrap;
+}
+
+#page-local-documents-area .local-documents-diff-add {
+    background: var(--lg-good-bg, #e2f3e5);
+    color: var(--lg-good, #1e6b34);
+}
+
+#page-local-documents-area .local-documents-diff-del {
+    background: var(--lg-bad-bg, #f9dcdf);
+    color: var(--lg-bad, #a12734);
+    text-decoration: line-through;
+}
+
+/* Public verification page (embedded layout). */
+#page-local-documents-area .local-documents-verify {
+    max-width: 640px;
+    margin: 32px auto;
+    padding: 0 16px;
+}
+
+#page-local-documents-area .local-documents-verify-facts {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 4px 16px;
+    margin: 12px 0;
+}
+
+#page-local-documents-area .local-documents-verify-facts dt {
+    font-weight: 500;
+}
+
+#page-local-documents-area .local-documents-verify-facts dd {
+    margin: 0;
+}
+
+@media (max-width: 767.98px) {
+    #page-local-documents-area .local-documents-tiles {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    #page-local-documents-area .local-documents-sheet {
+        padding: 16px;
+    }
+
+    #page-local-documents-area .local-documents-verify-facts {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* The draft form sits beside the sheet: labels above their fields there. */
+@media (min-width: 992px) {
+    #page-local-documents-area .local-documents-draft .mform .fitem > .col-md-3,
+    #page-local-documents-area .local-documents-draft .mform .fitem > .col-md-9 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    #page-local-documents-area .local-documents-draft .mform .fitem > .col-md-3 {
+        padding-bottom: 4px;
+    }
+
+    #page-local-documents-area .local-documents-draft .local-documents-sheet {
+        position: sticky;
+        top: 72px;
+    }
+}

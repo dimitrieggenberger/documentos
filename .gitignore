@@ -1,0 +1,42 @@
+# Moodle plugin repository hygiene.
+/.git/
+/.github/
+/.vscode/
+/.idea/
+
+# Build output and generated packages.
+/build/
+/dist/
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+
+# Dependency folders that should be restored outside this plugin repo.
+/node_modules/
+/vendor/
+
+# Logs, caches, and temporary files.
+/logs/
+/tmp/
+/temp/
+/.cache/
+*.log
+*.tmp
+*.bak
+*.swp
+*~
+
+# OS/editor noise.
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Claude Code session files: keep only the shared launch config.
+/.claude/*
+!/.claude/launch.json
+
+
+# Mockup screenshots and single-file copies (dev/<name>/out/).
+dev/**/out/
