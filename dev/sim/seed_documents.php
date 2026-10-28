@@ -47,6 +47,8 @@ foreach (['headerlines', 'footertext', 'brandcolor'] as $old) {
     unset_config($old, 'local_documents');
 }
 foreach ([
+    // The QR codes open this site's own page: the public one does not know the simulation.
+    'verifyurl' => '',
     'schoolname' => 'Instituto Bilingüe Valle Verde',
     'sacecode' => '050100099M01',
     'jornada' => 'JM',

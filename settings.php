@@ -67,7 +67,7 @@ if ($hassiteconfig) {
     $settings->add(new admin_setting_heading('local_documents/verifyheading', get_string('settingverify', 'local_documents'),
         get_string('settingverify_desc', 'local_documents')));
     $settings->add(new admin_setting_configtext('local_documents/verifyurl', get_string('verifyurl', 'local_documents'),
-        get_string('verifyurl_desc', 'local_documents'), '', PARAM_URL));
+        get_string('verifyurl_desc', 'local_documents'), 'https://europaschule.eu/verificar/', PARAM_URL));
     $settings->add(new admin_setting_configpasswordunmask('local_documents/verifytoken',
         get_string('verifytoken', 'local_documents'), get_string('verifytoken_desc', 'local_documents'), ''));
 

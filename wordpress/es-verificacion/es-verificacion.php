@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Verificación de documentos (EuropaSchule)
  * Description: Página pública para verificar los documentos oficiales emitidos en la plataforma escolar (Moodle, local_documents): el código QR de cada constancia o certificación abre esta página. Shortcode: [es_verificacion].
- * Version: 0.1.0
+ * Version: 0.2.0
  * Requires at least: 6.0
  * Requires PHP: 8.1
  * Author: Educación Helvética SA / EuropaSchule
@@ -106,13 +106,31 @@ function es_verificacion_statuses(): array {
 }
 
 /**
+ * The small icon in front of an answer: a check, an exclamation mark or a cross.
+ *
+ * @param string $tone good, warn, bad or neutral
+ * @return string inline SVG
+ */
+function es_verificacion_icon(string $tone): string {
+    $paths = [
+        'good' => '<path d="M7 12.5l3.2 3.2L17 9" />',
+        'warn' => '<path d="M12 7v6" /><path d="M12 16.5v.5" />',
+        'bad' => '<path d="M8.5 8.5l7 7" /><path d="M15.5 8.5l-7 7" />',
+        'neutral' => '<path d="M12 11v5" /><path d="M12 8v.5" />',
+    ];
+    return '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2"'
+        . ' stroke-linecap="round" stroke-linejoin="round" focusable="false"><circle cx="12" cy="12" r="10.5" />'
+        . ($paths[$tone] ?? $paths['neutral']) . '</svg>';
+}
+
+/**
  * The [es_verificacion] shortcode: the form and, with a code, the answer.
  *
  * @return string
  */
 function es_verificacion_shortcode(): string {
-    wp_enqueue_style('es-verificacion', plugins_url('es-verificacion.css', __FILE__), [], '0.1.0');
-    wp_enqueue_script('es-verificacion', plugins_url('es-verificacion.js', __FILE__), [], '0.1.0', true);
+    wp_enqueue_style('es-verificacion', plugins_url('es-verificacion.css', __FILE__), [], '0.2.0');
+    wp_enqueue_script('es-verificacion', plugins_url('es-verificacion.js', __FILE__), [], '0.2.0', true);
 
     $code = isset($_GET['c']) ? es_verificacion_clean_code(sanitize_text_field(wp_unslash($_GET['c']))) : '';
     $display = $code !== '' ? implode('-', str_split($code, 4)) : '';
@@ -131,7 +149,8 @@ function es_verificacion_shortcode(): string {
         $statuses = es_verificacion_statuses();
         [$heading, $tone] = $statuses[$result['status']] ?? $statuses['unavailable'];
         $html .= '<section class="es-verif__result es-verif__result--' . esc_attr($tone) . '" aria-live="polite">';
-        $html .= '<h2>' . esc_html($heading) . '</h2>';
+        $html .= '<h2><span class="es-verif__icon" aria-hidden="true">' . es_verificacion_icon($tone) . '</span>'
+            . esc_html($heading) . '</h2>';
         if (!empty($result['title'])) {
             $rows = [
                 'Documento' => $result['title'],
@@ -160,8 +179,9 @@ function es_verificacion_shortcode(): string {
             $html .= '</dl>';
             if (!empty($result['sha256']) && preg_match('/^[0-9a-f]{64}$/', (string)$result['sha256'])) {
                 $html .= '<div class="es-verif__file" data-sha="' . esc_attr($result['sha256']) . '">';
-                $html .= '<label for="es-verif-file">¿Tiene el PDF? Compruebe que es el original, sin cambios:</label>';
-                $html .= '<input id="es-verif-file" type="file" accept="application/pdf,.pdf">';
+                $html .= '<p class="es-verif__filelead">¿Tiene el PDF? Compruebe que es el original, sin cambios.</p>';
+                $html .= '<label class="es-verif__filebtn">Elegir el PDF'
+                    . '<input id="es-verif-file" type="file" accept="application/pdf,.pdf"></label>';
                 $html .= '<p class="es-verif__filemsg" role="status"></p>';
                 $html .= '<p class="es-verif__hint">El archivo se revisa en su navegador; no se envía a ningún servidor.</p>';
                 $html .= '</div>';

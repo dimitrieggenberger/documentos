@@ -318,7 +318,7 @@ $string['verifytitle'] = 'Dokumentprüfung';
 $string['verifytoken'] = 'Website-Token';
 $string['verifytoken_desc'] = 'Ein langer Zufallstext, derselbe wie im WordPress-Plugin. Mit Token antwortet verify_api.php nur der Website. Leer darf jede und jeder fragen.';
 $string['verifyurl'] = 'Prüfseite';
-$string['verifyurl_desc'] = 'Zum Beispiel https://www.europaschule.eu/verificar/. Der Code wird als ?c= angehängt.';
+$string['verifyurl_desc'] = 'Zum Beispiel https://europaschule.eu/verificar/ (Vorgabe). Der Code wird als ?c= angehängt. Leer: die Seite dieser Plattform.';
 $string['version'] = 'Version';
 $string['versions'] = 'Versionen';
 $string['warnhold'] = 'Für diese Person besteht eine Notensperre ({$a}).';

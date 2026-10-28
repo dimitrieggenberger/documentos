@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.1] - 2026-10-28
+
+### Changed
+
+- **The verification page is europaschule.eu/verificar** by default (setting "Verification page"); the simulation keeps its own page. The WordPress plugin `es-verificacion` 0.2.0 marks each answer with an icon (check, exclamation mark, cross) besides its colour, offers "Elegir el PDF" as a button instead of the browser's file field, and stacks the code field and its button on phones. Mockup `dev/verify-mockup/` (the shortcode's real output in a copy of a live page of the website, every state, desktop and phone).
+
 ## [0.2.0] - 2026-10-28
 
 ### Changed

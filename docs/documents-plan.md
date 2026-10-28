@@ -73,6 +73,9 @@ years of service, courses taught.
   minutes.
 - With a token set, the API answers only the website, which passes on the
   visitor's address for the rate limit.
+- The public page is **europaschule.eu/verificar** (the default of the
+  "Verification page" setting); the QR opens `/verificar/?c=CODE`.
+  Mockup: `dev/verify-mockup/` (states.php, build.py, shoot.js).
 - `wordpress/es-verificacion` is the public page: shortcode
   `[es_verificacion]`, Spanish, asks the API server-side, caches a minute, and
   lets the visitor compare a PDF with the original's SHA-256 in the browser
