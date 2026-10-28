@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.1] - 2026-10-28
+
+### Fixed
+
+- **Privacy metadata**: the signature messages are declared through the `core_message` subsystem (0.3.0 called a method that does not exist, so the privacy registry failed on this plugin).
+
 ## [0.3.0] - 2026-10-28
 
 ### Added

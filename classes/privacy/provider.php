@@ -66,8 +66,7 @@ class provider implements
         $collection->add_database_table('local_documents_unit', [
             'userid' => 'privacy:metadata:unit:userid',
         ], 'privacy:metadata:unit');
-        $collection->add_message_provider('signaturerequest', 'privacy:metadata:messages');
-        $collection->add_message_provider('signatureresult', 'privacy:metadata:messages');
+        $collection->link_subsystem('core_message', 'privacy:metadata:messages');
         $collection->add_database_table('local_documents_tplver', [
             'createdby' => 'privacy:metadata:tplver:createdby',
         ], 'privacy:metadata:tplver');
