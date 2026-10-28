@@ -91,6 +91,13 @@ if ($result !== null) {
                 $dl .= html_writer::tag('dt', s($label)) . html_writer::tag('dd', s($value));
             }
         }
+        if (!empty($result['attachments'])) {
+            $items = array_map(static fn($a) => s($a['name']) . ' · ' . display_size($a['size'])
+                . html_writer::div('SHA-256 ' . html_writer::tag('code', s($a['sha256'])), 'small text-break'),
+                $result['attachments']);
+            $dl .= html_writer::tag('dt', get_string('attachments', 'local_documents'))
+                . html_writer::tag('dd', html_writer::alist($items, [], 'ol'));
+        }
         $html .= html_writer::tag('dl', $dl, ['class' => 'local-documents-verify-facts'])
             . html_writer::tag('p', get_string('verifysha', 'local_documents') . ' '
                 . html_writer::tag('code', s($result['sha256']), ['class' => 'text-break']), ['class' => 'small']);

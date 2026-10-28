@@ -28,6 +28,8 @@
  * @return bool
  */
 function xmldb_local_documents_upgrade($oldversion) {
+    global $DB;
+    $dbman = $DB->get_manager();
     if ($oldversion < 2026102800) {
         // The brand manual's letter (Figma "Letter"): sentence-case titles, the recipient as a block
         // of its own, an attachment line. Only templates nobody edited get the new version.
@@ -40,6 +42,79 @@ function xmldb_local_documents_upgrade($oldversion) {
         $fs = get_file_storage();
         $fs->delete_area_files(context_system::instance()->id, 'local_documents', 'logo2');
         upgrade_plugin_savepoint(true, 2026102800, 'local', 'documents');
+    }
+    if ($oldversion < 2026102900) {
+        // Issuing units become records an administrator manages: each linked to the Moodle user who
+        // signs for it, with the document types it may issue; types say whose signatures they require;
+        // every signature asked for is an approval.
+        $table = new xmldb_table('local_documents_unit');
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+        $table->add_field('code', XMLDB_TYPE_CHAR, '20', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('name', XMLDB_TYPE_CHAR, '255', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('email', XMLDB_TYPE_CHAR, '255', null, null, null, null);
+        $table->add_field('phone', XMLDB_TYPE_CHAR, '100', null, null, null, null);
+        $table->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('signername', XMLDB_TYPE_CHAR, '255', null, null, null, null);
+        $table->add_field('signertitle', XMLDB_TYPE_CHAR, '255', null, null, null, null);
+        $table->add_field('enabled', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '1');
+        $table->add_field('sortorder', XMLDB_TYPE_INTEGER, '5', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_index('code', XMLDB_INDEX_UNIQUE, ['code']);
+        $table->add_index('userid', XMLDB_INDEX_NOTUNIQUE, ['userid']);
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+
+        $table = new xmldb_table('local_documents_unittype');
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+        $table->add_field('unitid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('typeid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_key('unitid', XMLDB_KEY_FOREIGN, ['unitid'], 'local_documents_unit', ['id']);
+        $table->add_key('typeid', XMLDB_KEY_FOREIGN, ['typeid'], 'local_documents_type', ['id']);
+        $table->add_index('unittype', XMLDB_INDEX_UNIQUE, ['unitid', 'typeid']);
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+
+        $table = new xmldb_table('local_documents_signer');
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+        $table->add_field('typeid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('unitid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('sortorder', XMLDB_TYPE_INTEGER, '5', null, XMLDB_NOTNULL, null, '0');
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_key('typeid', XMLDB_KEY_FOREIGN, ['typeid'], 'local_documents_type', ['id']);
+        $table->add_key('unitid', XMLDB_KEY_FOREIGN, ['unitid'], 'local_documents_unit', ['id']);
+        $table->add_index('typeunit', XMLDB_INDEX_UNIQUE, ['typeid', 'unitid']);
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+
+        $table = new xmldb_table('local_documents_approval');
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+        $table->add_field('docid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('unitid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('sortorder', XMLDB_TYPE_INTEGER, '5', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('status', XMLDB_TYPE_CHAR, '20', null, XMLDB_NOTNULL, null, 'pending');
+        $table->add_field('timerequested', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('timedecided', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_key('docid', XMLDB_KEY_FOREIGN, ['docid'], 'local_documents_doc', ['id']);
+        $table->add_index('userstatus', XMLDB_INDEX_NOTUNIQUE, ['userid', 'status']);
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+
+        \local_documents\local\units::install_defaults((string)get_config('local_documents', 'units'));
+        unset_config('units', 'local_documents');
+        unset_config('signatories', 'local_documents');
+        // The official name in the texts; constancias and certificaciones keep the template's wording.
+        \local_documents\local\catalog::refresh_untouched('Nombre oficial del centro en el texto; firmas por unidad '
+            . 'emisora; los adjuntos se suben como archivos.');
+        upgrade_plugin_savepoint(true, 2026102900, 'local', 'documents');
     }
     return true;
 }

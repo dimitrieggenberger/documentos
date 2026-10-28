@@ -123,6 +123,8 @@ class sources {
         $issuedate = (int)($data['issuedate'] ?? time());
         $values = [
             'school.name' => $school['name'],
+            'school.officialname' => $school['officialname'],
+            'school.legalname' => $school['legalname'],
             'school.sace' => $school['sace'],
             'school.city' => $school['city'],
             'school.department' => $school['department'],
@@ -140,7 +142,7 @@ class sources {
             'g.o' => $female ? 'a' : 'o',
         ];
 
-        $signers = self::signers($data, (int)$tplver->signatories);
+        $signers = self::signers($doc);
         $values['signer.name'] = $signers[0]['name'] ?? '';
         $values['signer.title'] = $signers[0]['title'] ?? '';
 
@@ -189,27 +191,53 @@ class sources {
     }
 
     /**
-     * The people signing a document, as chosen on the draft.
+     * Who signs a document: the heads of the units its type requires, with the
+     * time each approved it (0 while not yet).
      *
-     * @param array $data
-     * @param int $count signature blocks of the template
-     * @return array<int, array{name: string, title: string}>
+     * Once signatures are asked for, the list is the document's own (its
+     * approvals), so a later change to the type does not move them.
+     *
+     * @param \stdClass $doc
+     * @return array<int, array{unitid: int, unitcode: string, unitname: string, userid: int, name: string,
+     *     title: string, email: string, phone: string, approvedon: int}>
      */
-    public static function signers(array $data, int $count): array {
-        $list = config::signatories();
-        $chosen = $data['signers'] ?? [];
+    public static function signers(\stdClass $doc): array {
+        global $DB;
+        $approvals = !empty($doc->id) ? $DB->get_records('local_documents_approval', ['docid' => $doc->id],
+            'sortorder, id') : [];
         $signers = [];
-        for ($i = 0; $i < max(1, $count); $i++) {
-            $index = isset($chosen[$i]) ? (int)$chosen[$i] : $i;
-            if (isset($data['signerssnapshot'][$i])) {
-                $signers[] = $data['signerssnapshot'][$i];
-            } else if (isset($list[$index])) {
-                $signers[] = $list[$index];
-            } else {
-                $signers[] = ['name' => '', 'title' => ''];
+        if ($approvals) {
+            foreach ($approvals as $approval) {
+                $unit = units::details($DB->get_record('local_documents_unit', ['id' => $approval->unitid]) ?: null);
+                $signers[] = self::signer($unit, (int)$approval->userid,
+                    $approval->status === 'approved' ? (int)$approval->timedecided : 0);
             }
+            return $signers;
+        }
+        foreach (units::signers_for_type((int)$doc->typeid) as $unit) {
+            $details = units::details($unit);
+            $signers[] = self::signer($details, $details['userid'], 0);
         }
         return $signers;
+    }
+
+    /**
+     * One signer as the sheet prints it.
+     *
+     * @param array $unit from units::details()
+     * @param int $userid who signs
+     * @param int $approvedon
+     * @return array
+     */
+    private static function signer(array $unit, int $userid, int $approvedon): array {
+        $name = $unit['signername'];
+        if ($userid > 0 && $userid !== $unit['userid']) {
+            $user = \core_user::get_user($userid);
+            $name = $user ? fullname($user) : $name;
+        }
+        return ['unitid' => $unit['id'], 'unitcode' => $unit['code'], 'unitname' => $unit['name'], 'userid' => $userid,
+            'name' => $name, 'title' => $unit['signertitle'], 'email' => $unit['email'], 'phone' => $unit['phone'],
+            'approvedon' => $approvedon];
     }
 
     /**

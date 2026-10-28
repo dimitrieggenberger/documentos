@@ -33,6 +33,8 @@ class documents {
 
     /** @var string */
     const STATUS_DRAFT = 'draft';
+    /** @var string Waiting for the signatures the type requires. */
+    const STATUS_PENDING = 'pending';
     /** @var string */
     const STATUS_ISSUED = 'issued';
     /** @var string */
@@ -42,6 +44,8 @@ class documents {
 
     /** @var string The file area of issued PDFs. */
     const FILEAREA = 'issued';
+    /** @var string The file area of a document's attachments (itemid = the document version). */
+    const ATTACHMENTS = 'attachments';
 
     /**
      * One document, with its type, template version and series.
@@ -102,14 +106,18 @@ class documents {
             'gender' => $prefill['gender'],
             'year' => $prefill['year'],
             'body' => (string)$tplver->body,
-            'signers' => [0, 1],
             'issuedate' => $now,
         ];
+        $allowed = units::for_type((int)$type->id);
+        $unitcode = (string)$type->unitcode;
+        if ($allowed && !in_array($unitcode, array_column($allowed, 'code'), true)) {
+            $unitcode = (string)reset($allowed)->code;
+        }
         $id = (int)$DB->insert_record('local_documents_doc', (object)[
             'typeid' => $type->id, 'tplverid' => $tplver->id, 'seriesid' => $series->id, 'status' => self::STATUS_DRAFT,
             'userid' => $userid, 'holdername' => $prefill['holdername'], 'holderidnumber' => $prefill['holderidnumber'],
             'title' => $tplver->title, 'number' => '', 'seriescode' => $series->code, 'correlative' => 0, 'year' => 0,
-            'unitcode' => $type->unitcode, 'rootid' => 0, 'docversion' => 1, 'verifycode' => numbering::new_code(),
+            'unitcode' => $unitcode, 'rootid' => 0, 'docversion' => 1, 'verifycode' => numbering::new_code(),
             'data' => json_encode($data), 'createdby' => $creatorid, 'timecreated' => $now, 'timemodified' => $now,
         ]);
         $DB->set_field('local_documents_doc', 'rootid', $id, ['id' => $id]);
@@ -121,7 +129,7 @@ class documents {
      * Save what the issuer changed on a draft.
      *
      * @param int $id
-     * @param array $changes holdername, holderidnumber, unitcode, gender, year, fields, body, signers, issuedate
+     * @param array $changes holdername, holderidnumber, unitcode, gender, year, fields, body, issuedate
      * @param int $userid
      * @return void
      */
@@ -131,7 +139,7 @@ class documents {
         $doc = $bundle['doc'];
         self::require_draft($doc);
         $data = $bundle['data'];
-        foreach (['gender', 'year', 'signers', 'issuedate'] as $key) {
+        foreach (['gender', 'year', 'issuedate'] as $key) {
             if (array_key_exists($key, $changes)) {
                 $data[$key] = $changes[$key];
             }
@@ -159,7 +167,7 @@ class documents {
             $record->holderidnumber = trim((string)$changes['holderidnumber']);
         }
         if (isset($changes['unitcode']) && (int)$doc->docversion === 1
-                && array_key_exists($changes['unitcode'], config::units())) {
+                && in_array($changes['unitcode'], array_column(units::for_type((int)$doc->typeid), 'code'), true)) {
             $record->unitcode = $changes['unitcode'];
         }
         $DB->update_record('local_documents_doc', $record);
@@ -206,7 +214,8 @@ class documents {
         return [
             'bodyhtml' => templates::render($body, $collected['values'], $collected['tables']),
             'values' => $collected['values'],
-            'signers' => sources::signers($data, (int)$bundle['tplver']->signatories),
+            'signers' => sources::signers($doc),
+            'attachments' => self::attachments($doc),
             'school' => config::school(),
             'unit' => config::unit((string)$doc->unitcode),
             'warnings' => $collected['warnings'],
@@ -217,30 +226,189 @@ class documents {
     }
 
     /**
-     * Issue a draft: number, frozen text, the PDF and its hash.
+     * What keeps a draft from going out: settings, missing values, a hold, the person, the unit, the signers.
+     *
+     * @param array $bundle from get()
+     * @param array|null $composed from compose(), worked out when not given
+     * @return string[] the problems, as sentences; empty when it may go out
+     */
+    public static function problems(array $bundle, ?array $composed = null): array {
+        $doc = $bundle['doc'];
+        $composed = $composed ?? self::compose($bundle);
+        $problems = [];
+        if ($missing = config::missing()) {
+            $problems[] = get_string('settingsmissing', 'local_documents', implode(', ', $missing));
+        }
+        if (!empty($composed['missing'])) {
+            $problems[] = get_string('placeholdersmissing', 'local_documents', implode(', ', $composed['missing']));
+        }
+        if (!empty($composed['blocked'])) {
+            $problems[] = get_string('blockedbyhold', 'local_documents');
+        }
+        if ((int)$doc->userid === 0 && $bundle['type']->subject === 'person' && trim((string)$doc->holdername) === '') {
+            $problems[] = get_string('needsholdername', 'local_documents');
+        }
+        if ((int)$doc->docversion === 1
+                && !in_array((string)$doc->unitcode, array_column(units::for_type((int)$doc->typeid), 'code'), true)) {
+            $problems[] = get_string('unitnotallowed', 'local_documents', s($doc->unitcode));
+        }
+        foreach ($composed['signers'] as $signer) {
+            if ((int)$signer['userid'] <= 0) {
+                $problems[] = get_string('unitwithouthead', 'local_documents', s($signer['unitname'] ?: $signer['unitcode']));
+            }
+        }
+        return $problems;
+    }
+
+    /**
+     * Send a draft out: issued at once when nobody else has to sign, else to its signers.
+     *
+     * The person sending signs at once for every unit they head; a document that
+     * needs only their signature (or none) is issued there and then.
      *
      * @param int $id
      * @param int $userid
+     * @return bool true when issued, false when it now waits for signatures
+     */
+    public static function submit(int $id, int $userid): bool {
+        global $DB;
+        $bundle = self::get($id);
+        $doc = $bundle['doc'];
+        self::require_draft($doc);
+        if ($problems = self::problems($bundle)) {
+            throw new \moodle_exception('cannotsubmit', 'local_documents', '', implode(' ', $problems));
+        }
+        $now = time();
+        $transaction = $DB->start_delegated_transaction();
+        $DB->delete_records('local_documents_approval', ['docid' => $id]);
+        $waiting = [];
+        foreach (array_values(units::signers_for_type((int)$doc->typeid)) as $i => $unit) {
+            $own = (int)$unit->userid === $userid;
+            $DB->insert_record('local_documents_approval', (object)['docid' => $id, 'unitid' => $unit->id,
+                'userid' => $unit->userid, 'sortorder' => $i, 'status' => $own ? 'approved' : 'pending',
+                'timerequested' => $now, 'timedecided' => $own ? $now : 0]);
+            if ($own) {
+                self::log($id, 'approved', $userid, $unit->code);
+            } else {
+                $waiting[(int)$unit->userid] = (int)$unit->userid;
+            }
+        }
+        $data = $bundle['data'];
+        $data['submittedby'] = $userid;
+        $DB->update_record('local_documents_doc', (object)['id' => $id, 'data' => json_encode($data),
+            'status' => $waiting ? self::STATUS_PENDING : self::STATUS_DRAFT, 'timemodified' => $now]);
+        $transaction->allow_commit();
+        if (!$waiting) {
+            self::issue($id, $userid);
+            return true;
+        }
+        self::log($id, 'submitted', $userid);
+        foreach ($waiting as $signerid) {
+            notifications::signature_requested($id, $signerid, $userid);
+        }
+        return false;
+    }
+
+    /**
+     * A signer approves: their pending signatures on the document are given; the last one issues it.
+     *
+     * @param int $id
+     * @param int $userid the signer
+     * @return bool true when this issued the document
+     */
+    public static function approve(int $id, int $userid): bool {
+        global $DB;
+        $doc = $DB->get_record('local_documents_doc', ['id' => $id], '*', MUST_EXIST);
+        $mine = $DB->get_records('local_documents_approval', ['docid' => $id, 'userid' => $userid, 'status' => 'pending']);
+        if ($doc->status !== self::STATUS_PENDING || !$mine) {
+            throw new \moodle_exception('nothingtosign', 'local_documents');
+        }
+        $now = time();
+        foreach ($mine as $approval) {
+            $DB->update_record('local_documents_approval', (object)['id' => $approval->id, 'status' => 'approved',
+                'timedecided' => $now]);
+            self::log($id, 'approved', $userid, (string)$DB->get_field('local_documents_unit', 'code',
+                ['id' => $approval->unitid]));
+        }
+        if ($DB->record_exists('local_documents_approval', ['docid' => $id, 'status' => 'pending'])) {
+            return false;
+        }
+        $data = self::data($doc);
+        $submitter = (int)($data['submittedby'] ?? $doc->createdby);
+        self::issue($id, $submitter);
+        notifications::issued($id, $submitter);
+        return true;
+    }
+
+    /**
+     * A signer sends the draft back with a note; every signature given so far is withdrawn.
+     *
+     * @param int $id
+     * @param int $userid the signer
+     * @param string $note why
+     * @return void
+     */
+    public static function reject(int $id, int $userid, string $note): void {
+        global $DB;
+        $doc = $DB->get_record('local_documents_doc', ['id' => $id], '*', MUST_EXIST);
+        if ($doc->status !== self::STATUS_PENDING
+                || !$DB->record_exists('local_documents_approval', ['docid' => $id, 'userid' => $userid,
+                    'status' => 'pending'])) {
+            throw new \moodle_exception('nothingtosign', 'local_documents');
+        }
+        $DB->delete_records('local_documents_approval', ['docid' => $id]);
+        $DB->update_record('local_documents_doc', (object)['id' => $id, 'status' => self::STATUS_DRAFT,
+            'timemodified' => time()]);
+        self::log($id, 'rejected', $userid, trim($note));
+        $data = self::data($doc);
+        notifications::rejected($id, (int)($data['submittedby'] ?? $doc->createdby), $userid, trim($note));
+    }
+
+    /**
+     * The sender takes a document back from its signers, to change it.
+     *
+     * @param int $id
+     * @param int $userid
+     * @return void
+     */
+    public static function withdraw(int $id, int $userid): void {
+        global $DB;
+        $doc = $DB->get_record('local_documents_doc', ['id' => $id], '*', MUST_EXIST);
+        if ($doc->status !== self::STATUS_PENDING) {
+            throw new \moodle_exception('notpending', 'local_documents');
+        }
+        $DB->delete_records('local_documents_approval', ['docid' => $id]);
+        $DB->update_record('local_documents_doc', (object)['id' => $id, 'status' => self::STATUS_DRAFT,
+            'timemodified' => time()]);
+        self::log($id, 'withdrawn', $userid);
+    }
+
+    /**
+     * Issue a document whose signatures are complete: number, frozen text and attachments, the PDF and its hash.
+     *
+     * Reached through submit() and approve(); a document that requires
+     * signatures is refused here until every one of them is given.
+     *
+     * @param int $id
+     * @param int $userid who issues (the person who sent it out)
      * @return void
      */
     public static function issue(int $id, int $userid): void {
         global $DB;
         $bundle = self::get($id);
         $doc = $bundle['doc'];
-        self::require_draft($doc);
-        if ($missing = config::missing()) {
-            throw new \moodle_exception('settingsmissing', 'local_documents', '', implode(', ', $missing));
+        if (!in_array($doc->status, [self::STATUS_DRAFT, self::STATUS_PENDING], true)) {
+            throw new \moodle_exception('notadraft', 'local_documents');
+        }
+        $required = count(units::signers_for_type((int)$doc->typeid));
+        $given = $DB->count_records('local_documents_approval', ['docid' => $id, 'status' => 'approved']);
+        $open = $DB->count_records('local_documents_approval', ['docid' => $id, 'status' => 'pending']);
+        if ($open > 0 || ($required > 0 && $given === 0)) {
+            throw new \moodle_exception('signaturesmissing', 'local_documents');
         }
         $composed = self::compose($bundle);
-        if (!empty($composed['missing'])) {
-            throw new \moodle_exception('placeholdersmissing', 'local_documents', '', implode(', ', $composed['missing']));
-        }
-        if (!empty($composed['blocked'])) {
-            throw new \moodle_exception('blockedbyhold', 'local_documents');
-        }
-        if ((int)$doc->userid === 0 && in_array($bundle['type']->subject, ['person'], true)
-                && trim((string)$doc->holdername) === '') {
-            throw new \moodle_exception('needsholdername', 'local_documents');
+        if ($problems = self::problems($bundle, $composed)) {
+            throw new \moodle_exception('cannotsubmit', 'local_documents', '', implode(' ', $problems));
         }
 
         $data = $bundle['data'];
@@ -276,13 +444,13 @@ class documents {
                 'bodyhtml' => $composed['bodyhtml'],
                 'values' => $composed['values'],
                 'signers' => $composed['signers'],
+                'attachments' => $composed['attachments'],
                 'school' => $composed['school'],
                 'unit' => config::unit($unit),
                 'units' => config::units(),
                 'previousissued' => $previous ? (int)$previous->timeissued : 0,
                 'previousdate' => $previous ? (int)$previous->issuedate : 0,
             ];
-            $data['signerssnapshot'] = $composed['signers'];
             $doc->status = self::STATUS_ISSUED;
             $doc->number = $number;
             $doc->correlative = $correlative;
@@ -338,12 +506,14 @@ class documents {
         if ($doc->status !== self::STATUS_ISSUED) {
             throw new \moodle_exception('cannotrevise', 'local_documents');
         }
-        $open = $DB->get_record('local_documents_doc', ['rootid' => $doc->rootid, 'status' => self::STATUS_DRAFT]);
+        [$insql, $params] = $DB->get_in_or_equal([self::STATUS_DRAFT, self::STATUS_PENDING]);
+        $open = $DB->get_records_select('local_documents_doc', "rootid = ? AND status $insql",
+            array_merge([$doc->rootid], $params), 'id DESC', 'id', 0, 1);
         if ($open) {
-            return (int)$open->id;
+            return (int)reset($open)->id;
         }
         $data = $bundle['data'];
-        unset($data['frozen'], $data['signerssnapshot']);
+        unset($data['frozen'], $data['signerssnapshot'], $data['submittedby']);
         $data['issuedate'] = time();
         $max = (int)$DB->get_field_sql('SELECT MAX(docversion) FROM {local_documents_doc} WHERE rootid = ?', [$doc->rootid]);
         $now = time();
@@ -355,6 +525,13 @@ class documents {
             'rootid' => $doc->rootid, 'docversion' => $max + 1, 'verifycode' => numbering::new_code(),
             'data' => json_encode($data), 'createdby' => $userid, 'timecreated' => $now, 'timemodified' => $now,
         ]);
+        // The attachments go with the correction; they can be changed on its draft.
+        $fs = get_file_storage();
+        $context = \context_system::instance();
+        foreach ($fs->get_area_files($context->id, 'local_documents', self::ATTACHMENTS, $doc->id, 'sortorder, id', false)
+                as $file) {
+            $fs->create_file_from_storedfile(['itemid' => $newid], $file);
+        }
         self::log($newid, 'created', $userid, 'v' . ($max + 1));
         self::log((int)$doc->id, 'revisionstarted', $userid, 'v' . ($max + 1));
         return $newid;
@@ -379,7 +556,12 @@ class documents {
             'recalledby' => $userid, 'timerecalled' => time(), 'recallreason' => trim($reason),
             'recallnote' => trim($note), 'timemodified' => time()]);
         // An open correction of a recalled document has nothing left to correct.
-        $DB->delete_records('local_documents_doc', ['rootid' => $doc->rootid, 'status' => self::STATUS_DRAFT]);
+        [$insql, $params] = $DB->get_in_or_equal([self::STATUS_DRAFT, self::STATUS_PENDING]);
+        foreach ($DB->get_records_select('local_documents_doc', "rootid = ? AND status $insql",
+                array_merge([$doc->rootid], $params), '', 'id') as $open) {
+            $DB->set_field('local_documents_doc', 'status', self::STATUS_DRAFT, ['id' => $open->id]);
+            self::delete_draft((int)$open->id);
+        }
         self::log($id, 'recalled', $userid, trim($reason));
     }
 
@@ -393,6 +575,8 @@ class documents {
         global $DB;
         $doc = $DB->get_record('local_documents_doc', ['id' => $id], '*', MUST_EXIST);
         self::require_draft($doc);
+        get_file_storage()->delete_area_files(\context_system::instance()->id, 'local_documents', self::ATTACHMENTS, $id);
+        $DB->delete_records('local_documents_approval', ['docid' => $id]);
         $DB->delete_records('local_documents_log', ['docid' => $id]);
         $DB->delete_records('local_documents_doc', ['id' => $id]);
     }
@@ -408,6 +592,46 @@ class documents {
         $files = $fs->get_area_files(\context_system::instance()->id, 'local_documents', self::FILEAREA, $doc->id,
             'id', false);
         return $files ? reset($files) : null;
+    }
+
+    /**
+     * The attachments of a document version, in their order, each with its SHA-256.
+     *
+     * They are part of what is verified: their hashes are printed in the index
+     * at the foot of the document, embedded with it in the PDF, and shown on the
+     * verification page.
+     *
+     * @param \stdClass $doc
+     * @return array<int, array{fileid: int, name: string, size: int, mimetype: string, sha256: string}>
+     */
+    public static function attachments(\stdClass $doc): array {
+        if (empty($doc->id)) {
+            return [];
+        }
+        $list = [];
+        $files = get_file_storage()->get_area_files(\context_system::instance()->id, 'local_documents', self::ATTACHMENTS,
+            (int)$doc->id, 'sortorder, filename', false);
+        foreach ($files as $file) {
+            $list[] = ['fileid' => (int)$file->get_id(), 'name' => $file->get_filename(), 'size' => (int)$file->get_filesize(),
+                'mimetype' => (string)$file->get_mimetype(), 'sha256' => hash('sha256', $file->get_content())];
+        }
+        return $list;
+    }
+
+    /**
+     * One attachment's stored file, checked to belong to the document.
+     *
+     * @param \stdClass $doc
+     * @param int $fileid
+     * @return \stored_file|null
+     */
+    public static function attachment_file(\stdClass $doc, int $fileid): ?\stored_file {
+        $file = get_file_storage()->get_file_by_id($fileid);
+        if (!$file || $file->is_directory() || $file->get_component() !== 'local_documents'
+                || $file->get_filearea() !== self::ATTACHMENTS || (int)$file->get_itemid() !== (int)$doc->id) {
+            return null;
+        }
+        return $file;
     }
 
     /**

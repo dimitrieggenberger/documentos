@@ -22,7 +22,9 @@ global $CFG;
 require_once($CFG->libdir . '/formslib.php');
 
 use local_documents\local\config;
+use local_documents\local\sources;
 use local_documents\local\templates;
+use local_documents\local\units;
 
 /**
  * The draft of one document: who, the template's fields, the wording, the signers.
@@ -87,7 +89,8 @@ class draft_form extends \moodleform {
                 $name = 'f_' . $key;
                 switch ($field['type']) {
                     case 'textarea':
-                        $mform->addElement('textarea', $name, s($field['label']), ['rows' => 8, 'cols' => 60]);
+                        $mform->addElement('textarea', $name, s($field['label']), ['rows' => 8, 'cols' => 60]
+                            + templates::editor_attributes(null, false));
                         break;
                     case 'select':
                         $options = ['' => get_string('choosedots')];
@@ -111,47 +114,61 @@ class draft_form extends \moodleform {
 
         $mform->addElement('header', 'signhdr', get_string('signhdr', 'local_documents'));
         $mform->setExpanded('signhdr');
-        $signatories = config::signatories();
-        $options = [];
-        foreach ($signatories as $i => $signer) {
-            $options[$i] = $signer['name'] . ($signer['title'] !== '' ? ' — ' . $signer['title'] : '');
-        }
-        for ($i = 0; $i < (int)$tplver->signatories; $i++) {
-            if ($options) {
-                $mform->addElement('select', 'signer' . $i, get_string('signer', 'local_documents', $i + 1), $options);
-            } else {
-                $mform->addElement('static', 'signer' . $i, get_string('signer', 'local_documents', $i + 1),
-                    get_string('nosignatories', 'local_documents'));
-            }
-        }
-        $units = config::units();
+        $units = units::for_type((int)$type->id);
         if ((int)$doc->docversion === 1 && count($units) > 1) {
             $unitoptions = [];
-            foreach ($units as $code => $label) {
-                $unitoptions[$code] = $code . ' — ' . $label;
+            foreach ($units as $unit) {
+                $unitoptions[$unit->code] = $unit->code . ' — ' . $unit->name;
             }
             $mform->addElement('select', 'unitcode', get_string('unit', 'local_documents'), $unitoptions);
             $mform->addHelpButton('unitcode', 'unit', 'local_documents');
+        } else {
+            $mform->addElement('static', 'unitstatic', get_string('unit', 'local_documents'),
+                s($doc->unitcode . ' — ' . (config::units()[$doc->unitcode] ?? '')));
         }
+        $signers = sources::signers($doc);
+        $lines = [];
+        foreach ($signers as $signer) {
+            $lines[] = s(trim($signer['name'] . ', ' . $signer['title'], ', ') ?: '—')
+                . ' <span class="text-muted">(' . s($signer['unitcode']) . ')</span>';
+        }
+        $mform->addElement('static', 'signersstatic', get_string('requiredsignatures', 'local_documents'),
+            $lines ? implode('<br>', $lines) : get_string('nosignaturesneeded', 'local_documents'));
+        $mform->addHelpButton('signersstatic', 'requiredsignatures', 'local_documents');
         $mform->addElement('date_selector', 'issuedate', get_string('issuedate', 'local_documents'));
         $mform->addHelpButton('issuedate', 'issuedate', 'local_documents');
 
         if (!empty($tplver->allowbodyedit)) {
             $mform->addElement('header', 'bodyhdr', get_string('bodyhdr', 'local_documents'));
             $mform->addElement('textarea', 'body', get_string('body', 'local_documents'),
-                ['rows' => 16, 'cols' => 80, 'class' => 'local-documents-bodyfield']);
+                ['rows' => 16, 'cols' => 80, 'class' => 'local-documents-bodyfield'] + templates::editor_attributes($tplver));
             $mform->setType('body', PARAM_RAW);
             $mform->addHelpButton('body', 'body', 'local_documents');
         }
 
+        $mform->addElement('header', 'attachmentshdr', get_string('attachments', 'local_documents'));
+        $mform->addElement('filemanager', 'attachments', get_string('attachments', 'local_documents'), null,
+            self::attachment_options());
+        $mform->addHelpButton('attachments', 'attachments', 'local_documents');
+
         $buttons = [
             $mform->createElement('submit', 'save', get_string('savedraft', 'local_documents')),
             $mform->createElement('submit', 'preview', get_string('previewpdf', 'local_documents')),
-            $mform->createElement('submit', 'issue', get_string('issue', 'local_documents'),
-                ['class' => 'btn-success']),
+            $mform->createElement('submit', 'issue', get_string($this->_customdata['signsalone'] ? 'issue' : 'sendtosign',
+                'local_documents'), ['class' => 'btn-success']),
         ];
         $mform->addGroup($buttons, 'buttonar', '', [' '], false);
         $mform->closeHeaderBefore('buttonar');
+    }
+
+    /**
+     * What may be attached: PDF and images, up to ten files of 20 MB.
+     *
+     * @return array
+     */
+    public static function attachment_options(): array {
+        return ['subdirs' => 0, 'maxfiles' => 10, 'maxbytes' => 20 * 1024 * 1024,
+            'accepted_types' => ['.pdf', '.png', '.jpg', '.jpeg']];
     }
 
     /**
@@ -177,9 +194,6 @@ class draft_form extends \moodleform {
             $value = (string)($data['fields'][$key] ?? '');
             $values['f_' . $key] = $field['type'] === 'date' ? (ctype_digit($value) ? (int)$value : 0) : $value;
         }
-        foreach (($data['signers'] ?? [0, 1]) as $i => $index) {
-            $values['signer' . $i] = (int)$index;
-        }
         return $values;
     }
 
@@ -191,7 +205,7 @@ class draft_form extends \moodleform {
      * @return array
      */
     public static function changes(\stdClass $submitted, array $bundle): array {
-        $changes = ['fields' => [], 'signers' => []];
+        $changes = ['fields' => []];
         foreach (['holdername', 'holderidnumber', 'gender', 'year', 'unitcode', 'body'] as $key) {
             if (isset($submitted->$key)) {
                 $changes[$key] = (string)$submitted->$key;
@@ -205,10 +219,6 @@ class draft_form extends \moodleform {
             $value = $submitted->$name ?? '';
             $changes['fields'][$key] = $field['type'] === 'date' ? ((int)$value > 0 ? (string)(int)$value : '')
                 : trim((string)$value);
-        }
-        for ($i = 0; $i < (int)$bundle['tplver']->signatories; $i++) {
-            $name = 'signer' . $i;
-            $changes['signers'][$i] = isset($submitted->$name) ? (int)$submitted->$name : $i;
         }
         return $changes;
     }

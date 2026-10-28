@@ -17,7 +17,7 @@
 /**
  * Seed the simulation for official documents.
  *
- * A fictional school (name, SACE code, letterhead lines, signatories), the
+ * A fictional school (names, SACE code), its issuing units with their heads, the
  * profile fields documents print (identity number, sex, birth date, staff
  * position and start date) filled in for the 10G students and their teacher,
  * a secretary (Elena Castillo, ecastillo) who prepares and issues, and the
@@ -43,7 +43,7 @@ if (!preg_match('~^https?://(localhost|127\.0\.0\.1)(:\d+)?$~', $CFG->wwwroot)) 
 }
 
 // The school.
-foreach (['headerlines', 'footertext', 'brandcolor'] as $old) {
+foreach (['headerlines', 'footertext', 'brandcolor', 'units', 'signatories'] as $old) {
     unset_config($old, 'local_documents');
 }
 foreach ([
@@ -55,11 +55,7 @@ foreach ([
     'city' => 'San Pedro Sula',
     'department' => 'Cortés',
     'legalname' => 'Educación Valle Verde S. de R.L.',
-    'units' => "DCE | Dirección del Centro Educativo | direccion@example.invalid | (+504) 0000-0001\n"
-        . "SDCE | Subdirección del Centro Educativo | subdireccion@example.invalid | (+504) 0000-0002\n"
-        . "SCE | Secretaría del Centro Educativo | secretaria@example.invalid | (+504) 0000-0003",
-    'signatories' => "Lic. Rosa Gómez | Directora | direccion@example.invalid | (+504) 0000-0001\n"
-        . "Prof. Elena Castillo | Secretaria | secretaria@example.invalid | (+504) 0000-0003",
+    'officialname' => 'Centro Educativo No Gubernamental Bilingüe Valle Verde',
     'fieldidnumber' => 'dni',
     'fieldgender' => 'sexo',
     'fieldbirthdate' => 'fechanac',
@@ -157,4 +153,25 @@ if (!$secretary) {
 role_assign($secretaria, $secretary->id, $system->id);
 purge_caches(["muc" => false, "other" => true]);
 
-cli_writeln('Documents: school, profile fields, secretary ecastillo / Sim-Docs-2026!.');
+// The issuing units and who signs for each: Dirección (Rosa Gómez), Secretaría (Elena Castillo),
+// Subdirección (Pablo Ortiz). Every unit may issue every type; the catalogue's signatures stay.
+\local_documents\local\units::install_defaults();
+$heads = [
+    'DCE' => ['rgomez', 'Lic. Rosa Gómez', 'Directora', 'direccion@example.invalid', '(+504) 0000-0001'],
+    'SCE' => ['ecastillo', 'Prof. Elena Castillo', 'Secretaria', 'secretaria@example.invalid', '(+504) 0000-0003'],
+    'SDCE' => ['portiz', 'Lic. Pablo Ortiz', 'Subdirector', 'subdireccion@example.invalid', '(+504) 0000-0002'],
+];
+$alltypes = array_map('intval', $DB->get_fieldset_select('local_documents_type', 'id', '1 = 1'));
+foreach ($heads as $code => [$username, $name, $title, $email, $phone]) {
+    $unit = \local_documents\local\units::by_code($code);
+    $head = $DB->get_record('user', ['username' => $username]);
+    if (!$unit || !$head) {
+        continue;
+    }
+    \local_documents\local\units::save((object)['id' => $unit->id, 'code' => $code, 'name' => $unit->name,
+        'email' => $email, 'phone' => $phone, 'userid' => $head->id, 'signername' => $name, 'signertitle' => $title,
+        'enabled' => 1, 'typeids' => $alltypes]);
+}
+
+cli_writeln('Documents: school, profile fields, units (DCE rgomez, SCE ecastillo, SDCE portiz), '
+    . 'secretary ecastillo / Sim-Docs-2026!.');

@@ -43,6 +43,12 @@ $url = new moodle_url('/local/documents/view.php', ['id' => $id]);
 $canissue = has_capability('local/documents:issue', $context);
 $canrecall = has_capability('local/documents:recall', $context);
 
+if ($action === 'withdraw' && confirm_sesskey()) {
+    require_capability('local/documents:issue', $context);
+    documents::withdraw($id, (int)$USER->id);
+    redirect(new moodle_url('/local/documents/edit.php', ['id' => $id]), get_string('withdrawn', 'local_documents'), null,
+        \core\output\notification::NOTIFY_SUCCESS);
+}
 if ($action === 'revise' && confirm_sesskey()) {
     require_capability('local/documents:issue', $context);
     redirect(new moodle_url('/local/documents/edit.php', ['id' => documents::revise($id, (int)$USER->id)]));
@@ -123,6 +129,19 @@ $actions = [];
 if ($doc->status === documents::STATUS_DRAFT && $canissue) {
     $actions[] = html_writer::link(new moodle_url('/local/documents/edit.php', ['id' => $id]),
         get_string('continuedraft', 'local_documents'), ['class' => 'btn btn-primary']);
+} else if ($doc->status === documents::STATUS_PENDING) {
+    if ($DB->record_exists('local_documents_approval', ['docid' => $id, 'userid' => $USER->id, 'status' => 'pending'])) {
+        $actions[] = html_writer::link(new moodle_url('/local/documents/sign.php', ['id' => $id]),
+            get_string('review', 'local_documents'), ['class' => 'btn btn-primary']);
+    }
+    $actions[] = html_writer::link(new moodle_url('/local/documents/download.php', ['id' => $id]),
+        get_string('previewpdf', 'local_documents'), ['class' => 'btn btn-outline-secondary']);
+    if ($canissue) {
+        $withdraw = new single_button(new moodle_url($url, ['action' => 'withdraw']),
+            get_string('withdraw', 'local_documents'), 'post', single_button::BUTTON_SECONDARY);
+        $withdraw->add_confirm_action(get_string('withdrawconfirm', 'local_documents'));
+        $actions[] = $OUTPUT->render($withdraw);
+    }
 } else if ($doc->status !== documents::STATUS_DRAFT) {
     $actions[] = html_writer::link(new moodle_url('/local/documents/download.php', ['id' => $id]),
         get_string('downloadpdf', 'local_documents'), ['class' => 'btn btn-primary']);
@@ -140,6 +159,31 @@ if ($doc->status === documents::STATUS_ISSUED && $canrecall) {
 
 echo html_writer::div(implode(' ', $actions), 'd-flex flex-wrap gap-2 mb-3 local-documents-actions');
 echo html_writer::div(html_writer::table($table), 'local-documents-card');
+
+// Signatures and attachments.
+$composed = documents::compose($bundle);
+if ($composed['signers']) {
+    $st = new html_table();
+    $st->attributes['class'] = 'generaltable';
+    $st->head = [get_string('unit', 'local_documents'), get_string('signer', 'local_documents', ''),
+        get_string('status', 'local_documents')];
+    foreach ($composed['signers'] as $signer) {
+        $st->data[] = [s($signer['unitcode'] . ' — ' . $signer['unitname']), s(trim($signer['name'] . ', '
+            . $signer['title'], ', ')), !empty($signer['approvedon'])
+            ? html_writer::span(get_string('approvedon', 'local_documents', userdate((int)$signer['approvedon'],
+                get_string('strftimedatetimeshort', 'langconfig'))), 'badge badge-success bg-success')
+            : html_writer::span(get_string('signaturepending', 'local_documents'), 'badge badge-warning bg-warning text-dark')];
+    }
+    echo html_writer::tag('h3', get_string('signatures', 'local_documents'), ['class' => 'h5 mt-4']);
+    echo html_writer::table($st);
+}
+if ($composed['attachments']) {
+    echo html_writer::tag('h3', get_string('attachments', 'local_documents'), ['class' => 'h5 mt-4']);
+    echo html_writer::alist(array_map(static fn($a) => html_writer::link(new moodle_url('/local/documents/download.php',
+        ['id' => $id, 'file' => $a['fileid']]), s($a['name'])) . ' · ' . display_size($a['size'])
+        . html_writer::div('SHA-256 ' . html_writer::tag('code', s($a['sha256'])), 'small text-muted text-break'),
+        $composed['attachments']), [], 'ol');
+}
 
 // Versions.
 $versions = documents::versions((int)$doc->rootid);

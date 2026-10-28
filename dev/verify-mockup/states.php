@@ -86,6 +86,12 @@ function wp_remote_get($url, $args) {
 function wp_remote_retrieve_body($r) {
     return $r['body'];
 }
+function wp_json_encode($data) {
+    return json_encode($data);
+}
+function size_format($bytes) {
+    return round($bytes / 1024) . ' KB';
+}
 
 require(__DIR__ . '/../../wordpress/es-verificacion/es-verificacion.php');
 
@@ -94,8 +100,10 @@ $document = [
     'number' => 'CONSES – 022 – 050100099M01 – 2026 – DCE – JM', 'version' => 1,
     'holder' => 'Valentina Ríos Castro', 'holderid' => '••••-••••-•1274', 'subject' => '',
     'issued' => '27 de octubre de 2026', 'issueddate' => '2026-10-27', 'validuntil' => '25 de enero de 2027',
-    'school' => 'EuropaSchule San Pedro Sula', 'unit' => 'Dirección del Centro Educativo',
-    'signers' => ['Lic. Rosa Gómez, Directora'],
+    'school' => 'Centro Educativo No Gubernamental Trilingüe EuropaSchule', 'unit' => 'Dirección del Centro Educativo',
+    'signers' => ['Lic. Rosa Gómez, Directora (aprobado el 27 de octubre de 2026)'],
+    'attachments' => [['name' => 'constancia-de-matricula-sace.pdf', 'size' => 184320,
+        'sha256' => '8dfc8d9c3725d3b54b59b0b70bf6d39eca031be444632ec6ee8b1e4e66343a18']],
     'sha256' => '1368c5df645e70f31b98d3297c000d76e6c3492480eb9b0ad9adb8ba88be37b5',
 ];
 $states = [

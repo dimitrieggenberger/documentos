@@ -28,6 +28,9 @@ if ($hassiteconfig) {
         get_string('pluginname', 'local_documents')));
     $ADMIN->add('local_documents_category', new admin_externalpage('local_documents_registry',
         get_string('registry', 'local_documents'), new moodle_url('/local/documents/index.php'), 'local/documents:view'));
+    $ADMIN->add('local_documents_category', new admin_externalpage('local_documents_units',
+        get_string('units', 'local_documents'), new moodle_url('/local/documents/units.php'),
+        'local/documents:manageunits'));
     $ADMIN->add('local_documents_category', new admin_externalpage('local_documents_templates',
         get_string('templates', 'local_documents'), new moodle_url('/local/documents/templates.php'),
         'local/documents:managetemplates'));
@@ -37,12 +40,15 @@ if ($hassiteconfig) {
 
     $settings->add(new admin_setting_heading('local_documents/schoolheading', get_string('settingschool', 'local_documents'),
         get_string('settingschool_desc', 'local_documents')));
+    $defaults = \local_documents\local\config::SCHOOL_DEFAULTS;
     $settings->add(new admin_setting_configtext('local_documents/schoolname', get_string('schoolname', 'local_documents'),
-        get_string('schoolname_desc', 'local_documents'), '', PARAM_TEXT));
+        get_string('schoolname_desc', 'local_documents'), $defaults['schoolname'], PARAM_TEXT));
+    $settings->add(new admin_setting_configtext('local_documents/officialname', get_string('officialname', 'local_documents'),
+        get_string('officialname_desc', 'local_documents'), $defaults['officialname'], PARAM_TEXT));
     $settings->add(new admin_setting_configtext('local_documents/legalname', get_string('legalname', 'local_documents'),
-        get_string('legalname_desc', 'local_documents'), '', PARAM_TEXT));
+        get_string('legalname_desc', 'local_documents'), $defaults['legalname'], PARAM_TEXT));
     $settings->add(new admin_setting_configtext('local_documents/sacecode', get_string('sacecode', 'local_documents'),
-        get_string('sacecode_desc', 'local_documents'), '', PARAM_ALPHANUM));
+        get_string('sacecode_desc', 'local_documents'), $defaults['sacecode'], PARAM_ALPHANUM));
     $settings->add(new admin_setting_configselect('local_documents/jornada', get_string('jornada', 'local_documents'),
         get_string('jornada_desc', 'local_documents'), 'JM', array_map(static fn($label) => $label,
             \local_documents\local\config::JORNADAS)));
@@ -50,11 +56,8 @@ if ($hassiteconfig) {
         'San Pedro Sula', PARAM_TEXT));
     $settings->add(new admin_setting_configtext('local_documents/department', get_string('departmentname', 'local_documents'),
         '', 'Cortés', PARAM_TEXT));
-    $settings->add(new admin_setting_configtextarea('local_documents/units', get_string('units', 'local_documents'),
-        get_string('units_desc', 'local_documents'), "DCE | Dirección del Centro Educativo\n"
-        . "SDCE | Subdirección del Centro Educativo\nSCE | Secretaría del Centro Educativo", PARAM_RAW, 60, 5));
-    $settings->add(new admin_setting_configtextarea('local_documents/signatories', get_string('signatories', 'local_documents'),
-        get_string('signatories_desc', 'local_documents'), '', PARAM_RAW, 60, 5));
+    $settings->add(new admin_setting_description('local_documents/unitslink', get_string('units', 'local_documents'),
+        html_writer::link(new moodle_url('/local/documents/units.php'), get_string('unitslinkdesc', 'local_documents'))));
 
     $settings->add(new admin_setting_heading('local_documents/letterheadheading',
         get_string('settingletterhead', 'local_documents'), get_string('settingletterhead_desc', 'local_documents')));

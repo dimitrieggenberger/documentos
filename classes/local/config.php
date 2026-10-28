@@ -44,18 +44,32 @@ class config {
         return $value === false || $value === null || trim((string)$value) === '' ? $default : trim((string)$value);
     }
 
+    /** @var string[] The school's names and code until the settings say otherwise. */
+    const SCHOOL_DEFAULTS = [
+        'schoolname' => 'EuropaSchule San Pedro Sula',
+        'officialname' => 'Centro Educativo No Gubernamental Trilingüe EuropaSchule',
+        'legalname' => 'Educación Helvética SA',
+        'sacecode' => '050101072T03',
+    ];
+
     /**
      * The school as documents print it.
      *
-     * @return array{name: string, legalname: string, sace: string, city: string, department: string,
-     *     jornada: string, jornadalabel: string}
+     * Its commercial name and legal name go in the letterhead (brand manual);
+     * its official name, as registered with the Secretaría de Educación, under
+     * the number and in the text of official documents.
+     *
+     * @return array{name: string, officialname: string, legalname: string, sace: string, city: string,
+     *     department: string, jornada: string, jornadalabel: string}
      */
     public static function school(): array {
         $jornada = \core_text::strtoupper(self::get('jornada', 'JM'));
+        $name = self::get('schoolname', self::SCHOOL_DEFAULTS['schoolname']);
         return [
-            'name' => self::get('schoolname', format_string(get_site()->fullname)),
-            'legalname' => self::get('legalname'),
-            'sace' => \core_text::strtoupper(self::get('sacecode')),
+            'name' => $name,
+            'officialname' => self::get('officialname', self::SCHOOL_DEFAULTS['officialname']),
+            'legalname' => self::get('legalname', self::SCHOOL_DEFAULTS['legalname']),
+            'sace' => \core_text::strtoupper(self::get('sacecode', self::SCHOOL_DEFAULTS['sacecode'])),
             'city' => self::get('city', 'San Pedro Sula'),
             'department' => self::get('department', 'Cortés'),
             'jornada' => $jornada,
@@ -64,61 +78,31 @@ class config {
     }
 
     /**
-     * The issuing units (5th part of the number): code => name.
+     * The enabled issuing units (5th part of the number): code => name.
      *
      * @return array<string, string>
      */
     public static function units(): array {
-        return array_map(static fn($unit) => $unit['name'], self::unit_details());
+        $list = [];
+        foreach (units::all(true) as $unit) {
+            $list[$unit->code] = $unit->name;
+        }
+        return $list;
     }
 
     /**
      * One issuing unit as the header prints it: its name, official e-mail and phone.
      *
      * @param string $code
-     * @return array{code: string, name: string, email: string, phone: string}
+     * @return array{id: int, code: string, name: string, email: string, phone: string, userid: int,
+     *     signername: string, signertitle: string}
      */
     public static function unit(string $code): array {
-        $units = self::unit_details();
-        return $units[$code] ?? ['code' => $code, 'name' => $code, 'email' => '', 'phone' => ''];
-    }
-
-    /**
-     * Every issuing unit: one "CODE | Name | e-mail | phone" per line.
-     *
-     * @return array<string, array{code: string, name: string, email: string, phone: string}>
-     */
-    private static function unit_details(): array {
-        $raw = self::get('units', "DCE | Dirección del Centro Educativo\nSDCE | Subdirección del Centro Educativo\n"
-            . "SCE | Secretaría del Centro Educativo");
-        $units = [];
-        foreach (preg_split('/\R/', $raw) as $line) {
-            $parts = array_map('trim', explode('|', $line));
-            $code = \core_text::strtoupper($parts[0]);
-            if (preg_match('/^[A-Z0-9]{1,20}$/', $code)) {
-                $units[$code] = ['code' => $code, 'name' => ($parts[1] ?? '') !== '' ? $parts[1] : $code,
-                    'email' => $parts[2] ?? '', 'phone' => $parts[3] ?? ''];
-            }
+        $details = units::details(units::by_code($code));
+        if ($details['code'] === '') {
+            $details['code'] = $details['name'] = $code;
         }
-        return $units ?: ['DCE' => ['code' => 'DCE', 'name' => 'Dirección del Centro Educativo', 'email' => '',
-            'phone' => '']];
-    }
-
-    /**
-     * Who may sign: one "Name | Position | e-mail | phone" per line.
-     *
-     * @return array<int, array{name: string, title: string, email: string, phone: string}>
-     */
-    public static function signatories(): array {
-        $list = [];
-        foreach (preg_split('/\R/', self::get('signatories')) as $line) {
-            $parts = array_map('trim', explode('|', $line));
-            if ($parts[0] !== '') {
-                $list[] = ['name' => $parts[0], 'title' => $parts[1] ?? '', 'email' => $parts[2] ?? '',
-                    'phone' => $parts[3] ?? ''];
-            }
-        }
-        return $list;
+        return $details;
     }
 
     /**
@@ -155,10 +139,8 @@ class config {
      */
     public static function missing(): array {
         $missing = [];
-        foreach (['schoolname', 'sacecode', 'jornada'] as $name) {
-            if (self::get($name) === '') {
-                $missing[] = $name;
-            }
+        if (self::get('jornada', 'JM') === '') {
+            $missing[] = 'jornada';
         }
         return $missing;
     }

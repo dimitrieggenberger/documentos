@@ -96,10 +96,18 @@ class verify {
             'issued' => spanish::date_long((int)$doc->issuedate),
             'issueddate' => date('Y-m-d', (int)$doc->issuedate),
             'validuntil' => (int)$doc->validuntil > 0 ? spanish::date_long((int)$doc->validuntil) : '',
-            'school' => (string)($frozen['school']['name'] ?? config::school()['name']),
-            'unit' => (string)($frozen['units'][$doc->unitcode] ?? $doc->unitcode),
-            'signers' => array_values(array_filter(array_map(static fn($s) => trim(($s['name'] ?? '') . ', '
-                . ($s['title'] ?? ''), ', '), $frozen['signers'] ?? []))),
+            'school' => (string)($frozen['school']['officialname'] ?? $frozen['school']['name'] ?? config::school()['name']),
+            'unit' => (string)($frozen['unit']['name'] ?? $frozen['units'][$doc->unitcode] ?? $doc->unitcode),
+            'signers' => array_values(array_filter(array_map(static function($s) {
+                $line = trim(($s['name'] ?? '') . ', ' . ($s['title'] ?? ''), ', ');
+                if ($line !== '' && !empty($s['approvedon'])) {
+                    $line .= ' (' . get_string_manager()->get_string('verifyapprovedon', 'local_documents',
+                        spanish::date_long((int)$s['approvedon']), 'es') . ')';
+                }
+                return $line;
+            }, $frozen['signers'] ?? []))),
+            'attachments' => array_map(static fn($a) => ['name' => (string)$a['name'], 'size' => (int)$a['size'],
+                'sha256' => (string)$a['sha256']], array_values($frozen['attachments'] ?? [])),
             'sha256' => (string)$doc->contenthash,
         ];
         if ($status === 'recalled') {

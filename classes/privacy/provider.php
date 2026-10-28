@@ -29,8 +29,8 @@ use core_privacy\local\request\writer;
  *
  * Issued documents are official records the school must keep for the periods
  * of the Tabla de Retención Documental, so a deletion request does not erase
- * them; it removes only what is not part of the record: drafts and the
- * history lines of what the person did.
+ * them, nor the signatures given on them (approvals); it removes only what is
+ * not part of the record: drafts and the addresses in the history.
  *
  * @package   local_documents
  * @copyright Educación Helvética SA / EuropaSchule
@@ -59,6 +59,15 @@ class provider implements
             'userid' => 'privacy:metadata:log:userid',
             'ip' => 'privacy:metadata:log:ip',
         ], 'privacy:metadata:log');
+        $collection->add_database_table('local_documents_approval', [
+            'userid' => 'privacy:metadata:approval:userid',
+            'timedecided' => 'privacy:metadata:approval:timedecided',
+        ], 'privacy:metadata:approval');
+        $collection->add_database_table('local_documents_unit', [
+            'userid' => 'privacy:metadata:unit:userid',
+        ], 'privacy:metadata:unit');
+        $collection->add_message_provider('signaturerequest', 'privacy:metadata:messages');
+        $collection->add_message_provider('signatureresult', 'privacy:metadata:messages');
         $collection->add_database_table('local_documents_tplver', [
             'createdby' => 'privacy:metadata:tplver:createdby',
         ], 'privacy:metadata:tplver');
@@ -75,7 +84,9 @@ class provider implements
         global $DB;
         $contextlist = new contextlist();
         if ($DB->record_exists_select('local_documents_doc', 'userid = ? OR createdby = ? OR issuedby = ?',
-                [$userid, $userid, $userid]) || $DB->record_exists('local_documents_log', ['userid' => $userid])) {
+                [$userid, $userid, $userid]) || $DB->record_exists('local_documents_log', ['userid' => $userid])
+                || $DB->record_exists('local_documents_approval', ['userid' => $userid])
+                || $DB->record_exists('local_documents_unit', ['userid' => $userid])) {
             $contextlist->add_system_context();
         }
         return $contextlist;
@@ -95,6 +106,8 @@ class provider implements
             $userlist->add_from_sql($field, "SELECT $field FROM {local_documents_doc} WHERE $field > 0", []);
         }
         $userlist->add_from_sql('userid', 'SELECT userid FROM {local_documents_log} WHERE userid > 0', []);
+        $userlist->add_from_sql('userid', 'SELECT userid FROM {local_documents_approval} WHERE userid > 0', []);
+        $userlist->add_from_sql('userid', 'SELECT userid FROM {local_documents_unit} WHERE userid > 0', []);
     }
 
     /**

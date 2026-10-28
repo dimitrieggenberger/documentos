@@ -19,7 +19,7 @@ namespace local_documents\local;
 /**
  * Write a document as a letter-size PDF, in the order of the brand manual's
  * letter: header, place and date (with the number on the right), recipient,
- * title, body, signature block with the stamp, attachment, footer.
+ * title, body, signature block with the stamp, the attachments' index, footer.
  *
  * @package   local_documents
  * @copyright Educación Helvética SA / EuropaSchule
@@ -53,7 +53,7 @@ class pdf {
         ];
         $title = templates::plain((string)$doc->title, $values);
         $pdf->SetCreator('local_documents');
-        $pdf->SetAuthor($school['name']);
+        $pdf->SetAuthor($school['officialname'] ?? $school['name']);
         $pdf->SetTitle(trim($title . ' ' . ($final ? $doc->number : '')));
         $pdf->SetSubject((string)($doc->holdername ?? ''));
         $pdf->setPrintHeader(true);
@@ -87,7 +87,8 @@ class pdf {
             false, '', 1);
         $pdf->SetTextColor(...letter_pdf::MUTED);
         $pdf->SetFont(letter_pdf::FONT, '', 6);
-        $pdf->Cell($width / 2, 7.5, \core_text::strtoupper($school['name']), 0, 2, 'R', false, '', 1);
+        $pdf->Cell($width / 2, 7.5, \core_text::strtoupper($school['officialname'] ?? $school['name']), 0, 2, 'R', false,
+            '', 1);
         if ((int)$doc->docversion > 1) {
             $pdf->SetFont(letter_pdf::FONT, 'I', 6);
             $pdf->Cell($width / 2, 7.5, $strings['versionline'], 0, 2, 'R', false, '', 1);
@@ -129,13 +130,7 @@ class pdf {
         self::signatures($pdf, $composed['signers'], !empty($pdf->sheet['images']['stamp']) && $final
             ? $pdf->sheet['images']['stamp'] : '');
 
-        $attachment = trim((string)($values['f.adjunto'] ?? ''));
-        if ($attachment !== '') {
-            $pdf->SetY($pdf->GetY() + letter_pdf::BEFORE_ATTACHMENT);
-            $pdf->SetFont(letter_pdf::FONT, '', 8);
-            $pdf->SetTextColor(...letter_pdf::TEXT);
-            $pdf->MultiCell($width, 10, $strings['attachment'] . ' ' . $attachment, 0, 'L', false, 1, $left);
-        }
+        self::attachments($pdf, $bundle['doc'], $composed['attachments'] ?? [], $strings, $final);
 
         return $pdf->Output('', 'S');
     }
@@ -151,6 +146,11 @@ class pdf {
      */
     private static function signatures(letter_pdf $pdf, array $signers, string $stamp): void {
         $signers = array_values($signers);
+        if (!$signers) {
+            // A document issued without signatures: no block, no stamp.
+            return;
+        }
+        $sm = get_string_manager();
         $height = letter_pdf::SIGN_H + 20 + 8 + 20;
         $height = max($height, $stamp !== '' ? letter_pdf::STAMP : 0);
         $top = $pdf->GetY() + letter_pdf::BEFORE_SIGNATURE;
@@ -161,6 +161,14 @@ class pdf {
         $x = letter_pdf::MARGIN_X;
         $bottom = $top;
         foreach ($signers as $signer) {
+            // The room to sign by hand carries the digital approval, at the foot of it.
+            $approved = (int)($signer['approvedon'] ?? 0);
+            $pdf->SetTextColor(...letter_pdf::MUTED);
+            $pdf->SetFont(letter_pdf::FONT, 'I', 6);
+            $pdf->SetXY($x, $top + letter_pdf::SIGN_H - 9);
+            $pdf->Cell(letter_pdf::SIGNER_W, 7.5, $approved > 0
+                ? $sm->get_string('pdfapproved', 'local_documents', spanish::date_long($approved), 'es')
+                : $sm->get_string('pdfsignpending', 'local_documents', null, 'es'), 0, 0, 'L', false, '', 1);
             $y = $top + letter_pdf::SIGN_H;
             $pdf->SetXY($x, $y);
             $pdf->SetTextColor(...letter_pdf::TEXT);
@@ -194,6 +202,64 @@ class pdf {
     }
 
     /**
+     * The attachments' index at the foot of the document, each file embedded in the PDF.
+     *
+     * The list carries every file's name, size and SHA-256, so the document
+     * vouches for its attachments: the verification page shows the same hashes,
+     * and the files travel inside the PDF (the paper clip opens them).
+     *
+     * @param letter_pdf $pdf
+     * @param \stdClass $doc
+     * @param array $attachments from documents::attachments()
+     * @param array $strings
+     * @param bool $final
+     * @return void
+     */
+    private static function attachments(letter_pdf $pdf, \stdClass $doc, array $attachments, array $strings,
+            bool $final): void {
+        if (!$attachments) {
+            return;
+        }
+        $left = letter_pdf::MARGIN_X;
+        $width = letter_pdf::text_width();
+        // The frame's 36 pt before the index, tightened to 12 pt rather than leaving it alone on a page.
+        $needed = 10 + 20 * count($attachments);
+        $limit = letter_pdf::PAGE_H - letter_pdf::MARGIN_Y - letter_pdf::FOOTER_H;
+        if ($pdf->GetY() + letter_pdf::BEFORE_ATTACHMENT + $needed <= $limit) {
+            $pdf->SetY($pdf->GetY() + letter_pdf::BEFORE_ATTACHMENT);
+        } else if ($pdf->GetY() + 12 + $needed <= $limit) {
+            $pdf->SetY($pdf->GetY() + 12);
+        } else {
+            $pdf->AddPage();
+        }
+        $pdf->SetTextColor(...letter_pdf::TEXT);
+        $pdf->SetFont(letter_pdf::FONT, 'B', 8);
+        $pdf->MultiCell($width, 10, $strings['attachments'], 0, 'L', false, 1, $left);
+        $dir = make_request_directory();
+        foreach (array_values($attachments) as $i => $attachment) {
+            $y = $pdf->GetY() + 2;
+            $pdf->SetXY($left, $y);
+            $pdf->SetTextColor(...letter_pdf::TEXT);
+            $pdf->SetFont(letter_pdf::FONT, '', 8);
+            $pdf->Cell($width - 14, 10, ($i + 1) . '. ' . $attachment['name'] . ' · ' . display_size($attachment['size']),
+                0, 2, 'L', false, '', 1);
+            $pdf->SetTextColor(...letter_pdf::MUTED);
+            $pdf->SetFont(letter_pdf::FONT, '', 6);
+            $pdf->Cell($width - 14, 7.5, 'SHA-256 ' . $attachment['sha256'], 0, 2, 'L', false, '', 1);
+            $file = documents::attachment_file($doc, (int)$attachment['fileid']);
+            if ($final && $file) {
+                // One folder per attachment, so the embedded file keeps its own name.
+                check_dir_exists($dir . '/' . ($i + 1));
+                $path = $dir . '/' . ($i + 1) . '/' . clean_filename($attachment['name']);
+                $file->copy_content_to($path);
+                $pdf->Annotation($left + $width - 10, $y + 1, 8, 10, $attachment['name'],
+                    ['Subtype' => 'FileAttachment', 'Name' => 'Paperclip', 'FS' => $path]);
+            }
+        }
+        $pdf->SetTextColor(...letter_pdf::TEXT);
+    }
+
+    /**
      * The sheet's own wording, in Spanish like the document.
      *
      * @param \stdClass $doc
@@ -218,11 +284,12 @@ class pdf {
         }
         $previous = (int)($composed['previousdate'] ?? 0);
         return [
-            'draft' => $sm->get_string('pdfdraft', 'local_documents', null, 'es'),
+            'draft' => $sm->get_string($doc->status === documents::STATUS_PENDING ? 'pdfpending' : 'pdfdraft',
+                'local_documents', null, 'es'),
             'nonumber' => $sm->get_string('pdfnonumber', 'local_documents', null, 'es'),
             'footerlines' => $lines,
             'page' => $sm->get_string('pdfpage', 'local_documents', null, 'es'),
-            'attachment' => $sm->get_string('pdfattachment', 'local_documents', null, 'es'),
+            'attachments' => $sm->get_string('pdfattachments', 'local_documents', null, 'es'),
             'versionline' => $sm->get_string('pdfversion', 'local_documents', (object)['version' => (int)$doc->docversion,
                 'date' => $previous > 0 ? spanish::date_long($previous) : '—'], 'es'),
         ];

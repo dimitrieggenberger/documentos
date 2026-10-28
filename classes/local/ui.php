@@ -70,11 +70,24 @@ class ui {
             $tabs[] = new \tabobject('new', new moodle_url('/local/documents/create.php'),
                 get_string('newdocument', 'local_documents'));
         }
+        global $DB, $USER;
+        $tosign = $DB->count_records_sql("SELECT COUNT(DISTINCT a.docid) FROM {local_documents_approval} a
+                                            JOIN {local_documents_doc} d ON d.id = a.docid
+                                           WHERE a.userid = ? AND a.status = 'pending' AND d.status = ?",
+            [$USER->id, documents::STATUS_PENDING]);
+        if ($tosign > 0 || units::is_signer((int)$USER->id)) {
+            $tabs[] = new \tabobject('sign', new moodle_url('/local/documents/sign.php'),
+                get_string('tosign', 'local_documents') . ($tosign > 0 ? ' (' . $tosign . ')' : ''));
+        }
         if (has_capability('local/documents:managetemplates', $context)) {
             $tabs[] = new \tabobject('templates', new moodle_url('/local/documents/templates.php'),
                 get_string('templates', 'local_documents'));
             $tabs[] = new \tabobject('series', new moodle_url('/local/documents/series.php'),
                 get_string('seriesandnumbers', 'local_documents'));
+        }
+        if (has_capability('local/documents:manageunits', $context)) {
+            $tabs[] = new \tabobject('units', new moodle_url('/local/documents/units.php'),
+                get_string('units', 'local_documents'));
         }
         if (has_capability('moodle/site:config', $context)) {
             $tabs[] = new \tabobject('settings', new moodle_url('/admin/settings.php', ['section' => 'local_documents']),
@@ -113,6 +126,7 @@ class ui {
     public static function status(string $status, bool $expired = false): string {
         $classes = [
             documents::STATUS_DRAFT => 'badge badge-secondary bg-secondary',
+            documents::STATUS_PENDING => 'badge badge-info bg-info text-dark',
             documents::STATUS_ISSUED => 'badge badge-success bg-success',
             documents::STATUS_SUPERSEDED => 'badge badge-warning bg-warning text-dark',
             documents::STATUS_RECALLED => 'badge badge-danger bg-danger',
@@ -157,5 +171,60 @@ class ui {
      */
     public static function subject(string $subject): string {
         return get_string('subject_' . $subject, 'local_documents');
+    }
+
+    /**
+     * The sheet as it stands, in the order of the PDF (pdf::render) at screen size:
+     * header, recipient, title, body, signatures with their state, attachments.
+     *
+     * @param array $bundle from documents::get()
+     * @param array $composed from documents::compose()
+     * @return string
+     */
+    public static function sheet(array $bundle, array $composed): string {
+        global $OUTPUT;
+        $school = $composed['school'];
+        $unit = $composed['unit'] ?? config::unit((string)$bundle['doc']->unitcode);
+        $values = $composed['values'];
+        $headerblock = static function(string $bold, array $lines): string {
+            $html = html_writer::div(s($bold), 'fw-bold');
+            foreach (array_filter(array_map('trim', $lines), 'strlen') as $line) {
+                $html .= html_writer::div(s($line));
+            }
+            return html_writer::div($html, 'local-documents-sheet-headblock');
+        };
+        $sheet = html_writer::div(
+            html_writer::empty_tag('img', ['src' => $OUTPUT->image_url('brand/seal-documents', 'local_documents'), 'alt' => '',
+                'class' => 'local-documents-sheet-seal'])
+            . $headerblock($school['name'], [$school['legalname']])
+            . $headerblock($unit['name'], [$unit['email'], $unit['phone']]),
+            'local-documents-sheet-header');
+        if ($bundle['type']->subject === 'none' && trim((string)($values['f.destinatario'] ?? '')) !== '') {
+            $sheet .= html_writer::div(html_writer::div(s($values['f.destinatario']), 'fw-bold')
+                . implode('', array_map(static fn($line) => html_writer::div(s($line)), array_filter([$values['f.cargo'] ?? '',
+                    $values['f.institucion'] ?? '', $values['f.correo'] ?? ''], static fn($line) => trim((string)$line) !== ''))),
+                'local-documents-sheet-recipient');
+        }
+        $sheet .= html_writer::div(s(templates::plain((string)$bundle['doc']->title, $values)), 'local-documents-sheet-title')
+            . html_writer::div($composed['bodyhtml'], 'local-documents-sheet-body');
+        $signers = '';
+        foreach ($composed['signers'] as $signer) {
+            $signers .= html_writer::div(html_writer::div(s($signer['name']) ?: '&nbsp;', 'fw-bold')
+                . html_writer::div(s($signer['title']), 'local-documents-sheet-muted')
+                . html_writer::div(s(trim(($signer['email'] ?? '') . ' ' . ($signer['phone'] ?? ''))), 'local-documents-sheet-muted')
+                . html_writer::div(!empty($signer['approvedon'])
+                    ? get_string('approvedon', 'local_documents', userdate((int)$signer['approvedon'],
+                        get_string('strftimedatetimeshort', 'langconfig')))
+                    : get_string('signaturepending', 'local_documents'), 'local-documents-sheet-approval'),
+                'local-documents-sheet-signer');
+        }
+        $attachments = '';
+        if (!empty($composed['attachments'])) {
+            $items = array_map(static fn($a) => s($a['name']) . ' · ' . display_size($a['size']), $composed['attachments']);
+            $attachments = html_writer::div(html_writer::div(get_string('attachments', 'local_documents'), 'fw-bold')
+                . html_writer::alist($items, [], 'ol'), 'local-documents-sheet-attachments');
+        }
+        return html_writer::div($sheet . ($signers !== '' ? html_writer::div($signers, 'local-documents-sheet-signers') : '')
+            . $attachments, 'local-documents-sheet');
     }
 }

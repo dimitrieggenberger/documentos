@@ -27,6 +27,7 @@ require_once(__DIR__ . '/../../config.php');
 use local_documents\form\template_form;
 use local_documents\local\templates;
 use local_documents\local\ui;
+use local_documents\local\units;
 
 require_login();
 $context = context_system::instance();
@@ -39,17 +40,23 @@ $url = new moodle_url('/local/documents/template_edit.php', $id ? ['id' => $id] 
 $type = $id ? $DB->get_record('local_documents_type', ['id' => $id], '*', MUST_EXIST) : null;
 $current = $type && $type->currentversion ? $DB->get_record('local_documents_tplver', ['id' => $type->currentversion]) : null;
 
-$form = new template_form($url, ['isnew' => !$type, 'current' => $current]);
+$issuers = '';
+if ($type) {
+    $issuers = implode(', ', array_map(static fn($u) => s($u->code), units::for_type((int)$type->id)));
+    $issuers = ($issuers !== '' ? $issuers : get_string('nounitissues', 'local_documents')) . ' · '
+        . html_writer::link(new moodle_url('/local/documents/units.php'), get_string('units', 'local_documents'));
+}
+$form = new template_form($url, ['isnew' => !$type, 'current' => $current, 'issuers' => $issuers]);
 if ($type) {
     $form->set_data([
         'id' => $type->id, 'name' => $type->name, 'seriesid' => $type->seriesid, 'subject' => $type->subject,
         'source' => $type->source, 'unitcode' => $type->unitcode, 'validitydays' => $type->validitydays,
         'enabled' => $type->enabled, 'title' => $current->title ?? '', 'body' => $current->body ?? '',
-        'fields' => $current->fields ?? '', 'signatories' => $current->signatories ?? 1,
-        'allowbodyedit' => $current->allowbodyedit ?? 1,
-    ]);
+        'fields' => $current->fields ?? '', 'allowbodyedit' => $current->allowbodyedit ?? 1,
+    ] + array_combine(['signer1', 'signer2', 'signer3'], array_pad(array_slice(array_map(static fn($u) => (int)$u->id,
+        units::signers_for_type((int)$type->id)), 0, 3), 3, 0)));
 } else {
-    $form->set_data(['enabled' => 1, 'allowbodyedit' => 1, 'signatories' => 1, 'validitydays' => 0]);
+    $form->set_data(['enabled' => 1, 'allowbodyedit' => 1, 'validitydays' => 0]);
 }
 
 if ($form->is_cancelled()) {
@@ -71,6 +78,10 @@ if ($data = $form->get_data()) {
             'validitydays' => max(0, (int)$data->validitydays), 'currentversion' => 0, 'enabled' => (int)$data->enabled,
             'sortorder' => 1000, 'timecreated' => $now, 'timemodified' => $now,
         ]);
+        // A new type may be issued by its default unit; the units page widens that.
+        if ($unit = units::by_code((string)$data->unitcode)) {
+            $DB->insert_record('local_documents_unittype', (object)['unitid' => $unit->id, 'typeid' => $typeid]);
+        }
     } else {
         $typeid = (int)$type->id;
         $DB->update_record('local_documents_type', (object)[
@@ -82,6 +93,7 @@ if ($data = $form->get_data()) {
     if (!$current || template_form::content_changed($current, (array)$data)) {
         templates::save_version($typeid, (array)$data, (int)$USER->id);
     }
+    units::set_signers($typeid, [(int)$data->signer1, (int)$data->signer2, (int)$data->signer3]);
     $transaction->allow_commit();
     redirect(new moodle_url('/local/documents/template_edit.php', ['id' => $typeid]),
         get_string('templatesaved', 'local_documents'), null, \core\output\notification::NOTIFY_SUCCESS);

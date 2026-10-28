@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.0] - 2026-10-28
+
+### Added
+
+- **Issuing units with their signers** (`docs/documents-plan.md` 9). Units are records an administrator manages (`units.php`, capability `local/documents:manageunits`): code, name, e-mail and phone, the Moodle user who signs for it, and the document types it may issue. Upgrade step 2026102900 moves the old "units" setting there and drops the "signatories" setting.
+- **Signatures per document type** on the template page: none, or up to three units in order (defaults: constancias Dirección; certificaciones Secretaría then Dirección; circular and memorándum unsigned).
+- **The signature workflow**: a draft is sent to its signers (or issued at once when nobody else must sign: a sole signer issues alone); each head approves or sends it back with a note on `sign.php`; the last approval issues it. Pending documents are locked, have no number yet and can be taken back. The sheet prints "Aprobado digitalmente el …" for each signer, the verification page who signed and when. Messages to the signer and to the sender.
+- **Attachments** that are part of the document: uploaded on the draft, listed with their SHA-256 at its foot, embedded in the issued PDF, listed on the verification pages; the website's file check accepts the document or any attachment.
+- **A text toolbar** (`editor.js`) over template text, a draft's wording and a letter's text: bold, italic (new), centred paragraph, bulleted list (new), insert a data field. Rich-text editing evaluated and left out (`docs/documents-plan.md` 11). Constancias and certificaciones keep their template's wording; letters stay editable.
+
+### Changed
+
+- **The school's names and code**: commercial name EuropaSchule San Pedro Sula, official name Centro Educativo No Gubernamental Trilingüe EuropaSchule (new `{{school.officialname}}`, printed under the number and in the texts), legal name Educación Helvética SA, SACE 050101072T03, as the settings' defaults. Template version 3 for every ready-made template nobody edited.
+- WordPress plugin `es-verificacion` 0.3.0: attachments with their hashes, the file check against any of them.
+
 ## [0.2.1] - 2026-10-28
 
 ### Changed

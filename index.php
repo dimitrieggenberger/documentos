@@ -41,7 +41,8 @@ $page = optional_param('page', 0, PARAM_INT);
 $download = optional_param('download', '', PARAM_ALPHA);
 $perpage = 50;
 
-$statuses = [documents::STATUS_DRAFT, documents::STATUS_ISSUED, documents::STATUS_SUPERSEDED, documents::STATUS_RECALLED];
+$statuses = [documents::STATUS_DRAFT, documents::STATUS_PENDING, documents::STATUS_ISSUED, documents::STATUS_SUPERSEDED,
+    documents::STATUS_RECALLED];
 if (!in_array($status, $statuses, true)) {
     $status = '';
 }
@@ -106,10 +107,10 @@ $tiles = [
         'year = ? AND status IN (?, ?)', [$thisyear, documents::STATUS_ISSUED, documents::STATUS_SUPERSEDED])],
     [get_string('tiledrafts', 'local_documents'), $DB->count_records('local_documents_doc',
         ['status' => documents::STATUS_DRAFT])],
+    [get_string('tilepending', 'local_documents'), $DB->count_records('local_documents_doc',
+        ['status' => documents::STATUS_PENDING])],
     [get_string('tilerecalled', 'local_documents', $thisyear), $DB->count_records('local_documents_doc',
         ['status' => documents::STATUS_RECALLED, 'year' => $thisyear])],
-    [get_string('tileverified', 'local_documents'), $DB->count_records_select('local_documents_log',
-        'action = ? AND timecreated > ?', ['verified', time() - 30 * DAYSECS])],
 ];
 echo html_writer::start_div('local-documents-tiles');
 foreach ($tiles as [$label, $count]) {
@@ -152,7 +153,7 @@ echo html_writer::end_tag('form');
 
 $total = $DB->count_records_sql("SELECT COUNT(1) $fromsql", $sqlparams);
 $records = $DB->get_records_sql("SELECT d.*, t.name AS typename $fromsql
-                                  ORDER BY CASE WHEN d.status = 'draft' THEN 0 ELSE 1 END, d.timeissued DESC, d.id DESC",
+                                  ORDER BY CASE WHEN d.status IN ('draft', 'pending') THEN 0 ELSE 1 END, d.timeissued DESC, d.id DESC",
     $sqlparams, $page * $perpage, $perpage);
 
 if (!$records) {

@@ -55,17 +55,36 @@ const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (
   await p.goto(p.url().replace(/download\.php.*/, '') || p.url());
   await p.goto(L + 'index.php?status=draft');
   await Promise.all([p.waitForNavigation(), p.click('a:has-text("Continue draft"), a:has-text("Continuar borrador")')]);
+  check(/Rosa Gómez/.test(await p.locator('#fitem_id_signersstatic').innerText()), 'draft: the director must sign');
+  check(/Enviar a firma|Send to sign/.test(await p.locator('#id_issue').inputValue()), 'draft: sent to sign, not issued');
   await Promise.all([p.waitForNavigation(), p.click('#id_issue')]);
-  await shot(p, 'documents-issue-confirm');
+  await shot(p, 'documents-send-confirm');
   await Promise.all([p.waitForNavigation(), p.click('.modal-footer button.btn-primary, [role="main"] form button.btn-primary')]);
-  check(/view\.php/.test(p.url()), 'issue: lands on the record');
+  check(/view\.php/.test(p.url()), 'send: lands on the record');
+  check(/Esperando firmas|Waiting for signatures/.test(await p.locator('.local-documents-record').innerText()),
+    'send: waiting for signatures, no number yet');
+  const recordurl = p.url();
+  await shot(p, 'documents-pending');
+
+  // The director: what waits for her signature, the document, approve.
+  let d = await login('rgomez', 'Test123!');
+  await d.goto(L + 'sign.php');
+  check(await d.locator('.local-documents-task').count() >= 1, 'sign: the document waits for the director');
+  await shot(d, 'documents-tosign');
+  await Promise.all([d.waitForNavigation(), d.locator('.local-documents-task:has-text("Valentina") a').first().click()]);
+  check(await d.locator('#ld-approve').count() === 1 && await d.locator('#ld-reject').count() === 1, 'sign: approve or send back');
+  await shot(d, 'documents-sign');
+  await Promise.all([d.waitForNavigation(), d.click('#ld-approve')]);
+  check(/(emitido como|issued as) CONSES-\d{3}/i.test(await d.locator('body').innerText()), 'sign: the last signature issues');
+
+  await p.goto(recordurl);
   const number = (await p.locator('.local-documents-record .local-documents-number').innerText()).trim();
   check(/^CONSES-\d{3}-050100099M01-\d{4}-DCE-JM$/.test(number), 'issue: number follows the nomenclature: ' + number);
   const code = (await p.locator('.local-documents-record code').first().innerText()).trim();
   check(/^[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}$/.test(code), 'issue: verification code ' + code);
   check(await p.locator('a:has-text("Recall"), a:has-text("Anular")').count() === 0, 'secretary: no recall button');
+  check(/Aprobado el|Approved/.test(await p.locator('body').innerText()), 'record: the signature with its date');
   await shot(p, 'documents-record');
-  const recordurl = p.url();
 
   // The public: the verification page without a login, and the JSON.
   const pub = await (await b.newContext()).newPage();
@@ -77,8 +96,8 @@ const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (
   const json = await api.json();
   check(json.status === 'valid' && json.number.includes(number.split('-')[1]), 'api: valid with number');
 
-  // The director: correct (new version), then recall.
-  p = await login('rgomez', 'Test123!');
+  // The director: correct (new version: she is the only signer, so she issues it alone), then recall.
+  p = d;
   await p.goto(recordurl);
   await Promise.all([p.waitForNavigation(), p.click('button:has-text("Correct"), button:has-text("Corregir")')]).catch(() => {});
   if (await p.locator('.modal').count()) {
@@ -115,6 +134,32 @@ const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (
     check(/nopermissions|required|permisos|permission/i.test(await s.content()) || r.status() >= 400,
       user + ': registry refused');
   }
+
+  // The administrator: issuing units linked to users, signatures per type, the text toolbar.
+  const a = await login('admin', 'Sim-Admin-2026!');
+  await a.goto(L + 'units.php');
+  check(await a.locator('table.generaltable tbody tr').count() >= 3, 'units: listed');
+  check(/Rosa Gómez/.test(await a.locator('table.generaltable').innerText()), 'units: DCE signed by the director');
+  await shot(a, 'documents-units');
+  await a.goto(L + 'units.php?id=' + await a.locator('a:has-text("Edit"), a:has-text("Editar")').first().getAttribute('href')
+    .then(h => new URL(h, BASE).searchParams.get('id')));
+  check(await a.locator('#id_userid').count() === 1 && await a.locator('#id_typeids').count() === 1,
+    'unit: linked user and the documents it may issue');
+  await shot(a, 'documents-unit');
+  await a.goto(L + 'templates.php');
+  await a.goto(await a.locator('tr:has-text("Certificación de Notas") a').first().getAttribute('href'));
+  const signer1 = await a.locator('#id_signer1 option:checked').innerText();
+  const signer2 = await a.locator('#id_signer2 option:checked').innerText();
+  check(/SCE/.test(signer1) && /DCE/.test(signer2), 'template: certificación signed by Secretaría then Dirección');
+  check(await a.locator('.local-documents-toolbar').count() === 1, 'template: the text toolbar');
+  await shot(a, 'documents-template');
+  await a.goto(L + 'create.php');
+  await Promise.all([a.waitForNavigation(), a.click('.local-documents-typecard:has-text("Oficio")')]);
+  await Promise.all([a.waitForNavigation(), a.click('button:has-text("Iniciar borrador"), button:has-text("Start draft")')]);
+  await a.click('#id_bodyhdr .ftoggler a, a[href="#id_bodyhdrcontainer"]').catch(() => {});
+  check(await a.locator('.local-documents-toolbar').count() >= 2 && await a.locator('.local-documents-toolbar button').count() >= 8, 'draft: toolbar on the letter text and on the wording');
+  check(await a.locator('#fitem_id_attachments').count() === 1, 'draft: attachments upload');
+  await shot(a, 'documents-draft-letter');
 
   // Phone width: the verification page fits.
   const phone = await (await b.newContext({ viewport: { width: 400, height: 860 }, isMobile: true })).newPage();

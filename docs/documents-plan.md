@@ -27,11 +27,10 @@ and the school's name under it, as page 10 of the instructivo shows.
   (`numbering::next()`), so a failed issue gives the number back and two
   secretaries never get the same one. A school that numbered on paper sets the
   last number used; it cannot go below one already issued.
-- **SACE, jornada**: from the settings. Nothing is issued while the school
-  name, SACE code or jornada is empty.
+- **SACE, jornada**: from the settings (section 8).
 - **Year**: the year of the date printed on the document (año de creación).
-- **Unit**: DCE, SDCE, SCE... from the settings; a type has a default, the
-  draft may change it.
+- **Unit**: DCE, SDCE, SCE... the issuing units (section 9); a type has a
+  default, the draft may choose another unit allowed for its type.
 
 ## 3. Versions and recall
 
@@ -129,9 +128,103 @@ concentración, then permanent for the seeded ones); the record shows until
 when. Issued documents are never deleted, also not by a privacy request
 (drafts and addresses in the log are).
 
-## 8. Later
+## 8. The school
 
-- An approval step (secretary prepares, director signs) before the number.
-- Signature and seal images per signatory.
+Decided 2026-10-28, defaults of the settings: commercial name **EuropaSchule
+San Pedro Sula** (the letterhead), official name **Centro Educativo No
+Gubernamental Trilingüe EuropaSchule** (under the number and in the text,
+`{{school.officialname}}`), legal name **Educación Helvética SA** (under the
+commercial name in the letterhead), SACE code **050101072T03**. The jornada
+stays JM until the school says otherwise.
+
+## 9. Issuing units and signatures
+
+- An **issuing unit** (`local_documents_unit`) is the fifth part of the
+  number. An administrator (`local/documents:manageunits`) creates and edits
+  units on `units.php`: code, name, official e-mail and phone (the header),
+  the **Moodle user who signs for it** (always one; name and position as
+  printed), and the **document types it may issue**
+  (`local_documents_unittype`). A draft can only be issued by a unit allowed
+  for its type.
+- Each **document type** says whose signatures it requires
+  (`local_documents_signer`): none, one or up to three units, in order, set on
+  the template page. Defaults: constancias and staff documents, Dirección;
+  certificaciones, Secretaría then Dirección; oficio and convenio, Dirección;
+  circular and memorándum, **none**.
+- **Sending a draft out** (`documents::submit()`): every required signature
+  becomes an approval (`local_documents_approval`) for the unit's head; the
+  sender signs at once for every unit they head. Nothing left to sign: issued
+  there and then (so **a sole signer issues alone**, and a document without
+  signatures goes out at once). Otherwise the document waits (`pending`,
+  locked, no number yet) and each signer is notified.
+- **Each signer approves** on `sign.php` (the queue of what waits for them,
+  then the document: its sheet, PDF preview, attachments and, when the issuer
+  adjusted the wording, the changes from the template). The last approval
+  issues it: number, frozen text, PDF. A signer can **send it back** with a
+  note (the draft opens again, every signature given is dropped); the sender
+  can take it back to change it.
+- The sheet prints, in each signer's room to sign, "Aprobado digitalmente el
+  …"; the verification page says who signed and when.
+- A new head of a unit takes over the signatures still waiting on it.
+- Messages: `signaturerequest` to the signer, `signatureresult` to the sender
+  (issued, or sent back with the note).
+
+## 10. Attachments
+
+A draft takes attachments (PDF, PNG, JPEG; up to ten, 20 MB each, file area
+`attachments`). They are part of the verifiable document:
+
+- the index at its foot lists each one with its size and **SHA-256**
+  ("Adjuntos (forman parte de este documento)"), after the signatures;
+- each file is **embedded in the issued PDF**, byte for byte (a paper clip
+  next to its line opens it), so the document and its attachments travel as
+  one file, and the PDF's own hash covers them;
+- the verification page (and the website's) lists them with their hashes, and
+  the visitor's file check accepts the document or any of its attachments;
+- a correction carries the attachments over to its draft; signers download
+  them before signing.
+
+## 11. Editing text: the evaluation
+
+Two different edits, two answers.
+
+- **Templates** (`managetemplates`): yes. Every save is a version with a
+  required change note, a history and a line diff; issued documents keep the
+  version they came from.
+- **One document's wording** (the issuer): per template (`allowbodyedit`).
+  Constancias and certificaciones: **no**, their wording is the school's and
+  SEDUC's, only the template's fields change (purpose, conduct, destination…).
+  Letters (oficio, circular, memorándum, convenio): **yes**, the letter is
+  the text. When a document's wording differs from its template, the signers
+  see the changes before they sign.
+
+**The editor: the plugin's markup with a toolbar, not a rich-text editor.**
+Moodle's TinyMCE was considered and left out: it writes HTML with any font,
+size, colour and pasted Word styling, which breaks the brand letter (Poppins,
+fixed sizes and greys) and TCPDF's HTML subset; it makes template versions
+hard to compare line by line; and its HTML would have to be cleaned before
+every PDF. The markup is what the letter needs and nothing more:
+
+| Mark | Prints |
+|---|---|
+| `**text**` | bold |
+| `*text*` | italic |
+| `= ` at the start of a paragraph | centred paragraph |
+| `- ` at the start of each line | bulleted list |
+| `{{key}}`, `{{key|before|after}}` | a value from the platform or a field |
+| `{{tabla.notas}}`, `{{tabla.asistencia}}` | the published grades, the attendance lines |
+
+`editor.js` puts a toolbar over the template text, a draft's wording and a
+letter's text field (bold, italic, centre, list, and "insert a data field…"
+where placeholders apply); it only writes those marks, and the field works
+without JavaScript. The live preview beside the draft and the PDF preview show
+the result. No colours, sizes or fonts, by design.
+
+## 12. Later
+
+- Signature and seal images per signer (today the approval date stands in
+  the room to sign).
+- A substitute head while the head is away.
 - The full TRD as an importable catalogue.
 - Students and staff requesting a document from their own page.
+- A Certificación de estudios over several school years.

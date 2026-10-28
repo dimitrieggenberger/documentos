@@ -1,5 +1,5 @@
 /**
- * Compare a chosen PDF with the original's SHA-256, in the browser only.
+ * Compare a chosen file with the document's and its attachments' SHA-256, in the browser only.
  */
 (function () {
     'use strict';
@@ -23,11 +23,14 @@
                 var hex = Array.prototype.map.call(new Uint8Array(digest), function (b) {
                     return b.toString(16).padStart(2, '0');
                 }).join('');
-                var same = hex === box.getAttribute('data-sha');
-                message.textContent = same
-                    ? 'El archivo es idéntico al original emitido.'
-                    : 'El archivo no coincide con el original: puede haber sido modificado, o es otra versión.';
-                message.className = 'es-verif__filemsg es-verif__filemsg--' + (same ? 'good' : 'bad');
+                var files = JSON.parse(box.getAttribute('data-files') || '[]');
+                var match = files.filter(function (file) {
+                    return file.sha256 === hex;
+                })[0];
+                message.textContent = match
+                    ? 'El archivo es idéntico al original emitido: ' + match.name + '.'
+                    : 'El archivo no coincide con el documento ni con sus adjuntos: puede haber sido modificado, o es otra versión.';
+                message.className = 'es-verif__filemsg es-verif__filemsg--' + (match ? 'good' : 'bad');
             }).catch(function () {
                 message.textContent = 'No se pudo leer el archivo.';
             });

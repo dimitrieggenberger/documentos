@@ -39,8 +39,7 @@ final class documents_test extends \advanced_testcase {
         global $DB;
         $this->resetAfterTest();
         $this->setAdminUser();
-        foreach (['schoolname' => 'Escuela de Prueba', 'sacecode' => '050100001M01', 'jornada' => 'JM',
-                'signatories' => 'Ana Uno | Directora'] as $name => $value) {
+        foreach (['schoolname' => 'Escuela de Prueba', 'sacecode' => '050100001M01', 'jornada' => 'JM'] as $name => $value) {
             set_config($name, $value, 'local_documents');
         }
         return (int)$DB->get_field('local_documents_type', 'id', ['shortname' => 'memorandum']);
@@ -132,5 +131,115 @@ final class documents_test extends \advanced_testcase {
         $this->assertSame(41, (int)documents::get($next)['doc']->correlative);
         $this->expectException(\moodle_exception::class);
         \local_documents\local\numbering::set_last((int)$doc->seriesid, (int)$doc->year, 'DCE', 0);
+    }
+
+    /**
+     * An oficio draft (signed by DCE), filled in.
+     *
+     * @param int $creatorid
+     * @return int
+     */
+    private function oficio(int $creatorid): int {
+        global $DB;
+        $typeid = (int)$DB->get_field('local_documents_type', 'id', ['shortname' => 'oficio']);
+        $id = documents::create_draft($typeid, 0, $creatorid);
+        documents::update_draft($id, ['fields' => ['destinatario' => 'Sra. Prueba', 'asunto' => 'Prueba',
+            'texto' => 'Texto.']], $creatorid);
+        return $id;
+    }
+
+    /**
+     * Link a unit to a head.
+     *
+     * @param string $code
+     * @param int $userid
+     * @return void
+     */
+    private function head(string $code, int $userid): void {
+        global $DB;
+        $unit = \local_documents\local\units::by_code($code);
+        $DB->set_field('local_documents_unit', 'userid', $userid, ['id' => $unit->id]);
+    }
+
+    public function test_a_document_without_signatures_is_issued_at_once(): void {
+        global $USER;
+        $typeid = $this->setup_school();
+        $id = $this->draft($typeid);
+        $this->assertTrue(documents::submit($id, (int)$USER->id));
+        $this->assertSame(documents::STATUS_ISSUED, documents::get($id)['doc']->status);
+    }
+
+    public function test_the_signer_approves_and_the_last_signature_issues(): void {
+        $this->setup_school();
+        $secretary = $this->getDataGenerator()->create_user();
+        $director = $this->getDataGenerator()->create_user();
+        $this->head('DCE', (int)$director->id);
+        $sink = $this->redirectMessages();
+        $id = $this->oficio((int)$secretary->id);
+        $this->assertFalse(documents::submit($id, (int)$secretary->id));
+        $this->assertSame(documents::STATUS_PENDING, documents::get($id)['doc']->status);
+        $this->assertSame('', (string)documents::get($id)['doc']->number, 'no number before the last signature');
+        $this->assertCount(1, $sink->get_messages(), 'the director is asked');
+        try {
+            documents::approve($id, (int)$secretary->id);
+            $this->fail('only the head signs');
+        } catch (\moodle_exception $e) {
+            $this->assertSame('nothingtosign', $e->errorcode);
+        }
+        $this->assertTrue(documents::approve($id, (int)$director->id));
+        $doc = documents::get($id)['doc'];
+        $this->assertSame(documents::STATUS_ISSUED, $doc->status);
+        $this->assertSame((int)$secretary->id, (int)$doc->issuedby);
+        $frozen = documents::data($doc)['frozen'];
+        $this->assertGreaterThan(0, $frozen['signers'][0]['approvedon']);
+        $this->assertStringContainsString('aprobado el', verify::lookup($doc->verifycode)['signers'][0]);
+    }
+
+    public function test_the_sole_signer_issues_alone(): void {
+        $this->setup_school();
+        $director = $this->getDataGenerator()->create_user();
+        $this->head('DCE', (int)$director->id);
+        $id = $this->oficio((int)$director->id);
+        $this->assertTrue(documents::submit($id, (int)$director->id));
+        $this->assertSame(documents::STATUS_ISSUED, documents::get($id)['doc']->status);
+    }
+
+    public function test_sent_back_opens_the_draft_again(): void {
+        $this->setup_school();
+        $secretary = $this->getDataGenerator()->create_user();
+        $director = $this->getDataGenerator()->create_user();
+        $this->head('DCE', (int)$director->id);
+        $this->redirectMessages();
+        $id = $this->oficio((int)$secretary->id);
+        documents::submit($id, (int)$secretary->id);
+        documents::reject($id, (int)$director->id, 'Falta el saludo.');
+        $this->assertSame(documents::STATUS_DRAFT, documents::get($id)['doc']->status);
+        documents::update_draft($id, ['fields' => ['saludo' => 'Estimada señora:']], (int)$secretary->id);
+        $this->assertFalse(documents::submit($id, (int)$secretary->id), 'asked again');
+    }
+
+    public function test_a_unit_without_head_blocks_sending(): void {
+        $this->setup_school();
+        $this->head('DCE', 0);
+        $secretary = $this->getDataGenerator()->create_user();
+        $id = $this->oficio((int)$secretary->id);
+        $this->expectException(\moodle_exception::class);
+        documents::submit($id, (int)$secretary->id);
+    }
+
+    public function test_attachments_are_part_of_the_verifiable_document(): void {
+        global $USER;
+        $typeid = $this->setup_school();
+        $id = $this->draft($typeid);
+        get_file_storage()->create_file_from_string(['contextid' => \context_system::instance()->id,
+            'component' => 'local_documents', 'filearea' => documents::ATTACHMENTS, 'itemid' => $id, 'filepath' => '/',
+            'filename' => 'lista.png'], 'contenido de prueba');
+        documents::submit($id, (int)$USER->id);
+        $doc = documents::get($id)['doc'];
+        $answer = verify::lookup($doc->verifycode);
+        $this->assertSame('lista.png', $answer['attachments'][0]['name']);
+        $this->assertSame(hash('sha256', 'contenido de prueba'), $answer['attachments'][0]['sha256']);
+        $pdf = documents::file($doc)->get_content();
+        $this->assertStringContainsString('/EmbeddedFile', $pdf, 'the attachment travels inside the PDF');
     }
 }

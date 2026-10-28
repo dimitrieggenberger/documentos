@@ -56,23 +56,32 @@ if ($action === 'reset' && confirm_sesskey()) {
 }
 if ($action === 'issue' && optional_param('confirm', 0, PARAM_BOOL) && confirm_sesskey()) {
     try {
-        documents::issue($id, (int)$USER->id);
+        $issued = documents::submit($id, (int)$USER->id);
     } catch (moodle_exception $e) {
         redirect($url, $e->getMessage(), null, \core\output\notification::NOTIFY_ERROR);
     }
-    redirect($viewurl, get_string('issued', 'local_documents', documents::get($id)['doc']->number), null,
-        \core\output\notification::NOTIFY_SUCCESS);
+    redirect($viewurl, $issued ? get_string('issued', 'local_documents', documents::get($id)['doc']->number)
+        : get_string('senttosign', 'local_documents'), null, \core\output\notification::NOTIFY_SUCCESS);
 }
 
+// Whether the person at the keyboard can issue it alone: nobody else has to sign.
+$othersigners = array_filter(sources::signers($doc), static fn($signer) => (int)$signer['userid'] !== (int)$USER->id);
 $years = $bundle['type']->subject === 'student' ? sources::school_years((int)$doc->userid) : [];
-$form = new draft_form($url, ['bundle' => $bundle, 'years' => $years]);
-$form->set_data(draft_form::defaults($bundle));
+$form = new draft_form($url, ['bundle' => $bundle, 'years' => $years, 'signsalone' => !$othersigners]);
+$defaults = draft_form::defaults($bundle);
+$draftitemid = file_get_submitted_draft_itemid('attachments');
+file_prepare_draft_area($draftitemid, $context->id, 'local_documents', documents::ATTACHMENTS, $id,
+    draft_form::attachment_options());
+$defaults['attachments'] = $draftitemid;
+$form->set_data($defaults);
 
 if ($form->is_cancelled()) {
     redirect(new moodle_url('/local/documents/index.php'));
 }
 if ($submitted = $form->get_data()) {
     documents::update_draft($id, draft_form::changes($submitted, $bundle), (int)$USER->id);
+    file_save_draft_area_files($submitted->attachments, $context->id, 'local_documents', documents::ATTACHMENTS, $id,
+        draft_form::attachment_options());
     if (!empty($submitted->preview)) {
         redirect(new moodle_url('/local/documents/download.php', ['id' => $id, 'preview' => 1]));
     }
@@ -89,23 +98,24 @@ ui::setup($url, $title, 'new');
 echo ui::header($title);
 
 if ($action === 'issue') {
-    $problems = [];
-    if ($composed['missing']) {
-        $problems[] = get_string('placeholdersmissing', 'local_documents', implode(', ', $composed['missing']));
-    }
-    if (!empty($composed['blocked'])) {
-        $problems[] = get_string('blockedbyhold', 'local_documents');
-    }
+    $problems = documents::problems($bundle, $composed);
     if ($problems) {
         foreach ($problems as $problem) {
-            echo $OUTPUT->notification($problem, \core\output\notification::NOTIFY_ERROR, false);
+            echo $OUTPUT->notification(s($problem), \core\output\notification::NOTIFY_ERROR, false);
         }
         echo $OUTPUT->continue_button($url);
     } else {
-        $message = html_writer::tag('p', get_string('issueconfirm', 'local_documents', (object)[
-            'title' => s($doc->title), 'holder' => s($doc->holdername ?: '—')]))
-            . html_writer::tag('p', get_string((int)$doc->docversion > 1 ? 'issueconfirmrevision' : 'issueconfirmnumber',
-                'local_documents', (int)$doc->docversion), ['class' => 'text-muted']);
+        $message = html_writer::tag('p', get_string($othersigners ? 'sendconfirm' : 'issueconfirm', 'local_documents',
+            (object)['title' => s(templates::plain((string)$doc->title, $composed['values'])),
+                'holder' => s($doc->holdername ?: '—')]));
+        if ($othersigners) {
+            $message .= html_writer::alist(array_map(static fn($signer) => s(trim($signer['name'] . ', '
+                . $signer['title'], ', ')), array_values($othersigners)));
+            $message .= html_writer::tag('p', get_string('sendconfirmnote', 'local_documents'), ['class' => 'text-muted']);
+        } else {
+            $message .= html_writer::tag('p', get_string((int)$doc->docversion > 1 ? 'issueconfirmrevision'
+                : 'issueconfirmnumber', 'local_documents', (int)$doc->docversion), ['class' => 'text-muted']);
+        }
         echo $OUTPUT->confirm($message, new moodle_url($url, ['action' => 'issue', 'confirm' => 1, 'sesskey' => sesskey()]),
             $url);
     }
@@ -143,39 +153,7 @@ echo html_writer::end_div();
 // The sheet as it stands, so wording changes are seen before the PDF.
 echo html_writer::start_div('col-lg-6');
 echo html_writer::tag('h3', get_string('livepreview', 'local_documents'), ['class' => 'h5']);
-// The same order as the PDF (pdf::render), at screen size: header, recipient, title, body, signatures.
-$school = $composed['school'];
-$unit = $composed['unit'] ?? \local_documents\local\config::unit((string)$bundle['doc']->unitcode);
-$values = $composed['values'];
-$headerblock = static function(string $bold, array $lines): string {
-    $html = html_writer::div(s($bold), 'fw-bold');
-    foreach (array_filter(array_map('trim', $lines), 'strlen') as $line) {
-        $html .= html_writer::div(s($line));
-    }
-    return html_writer::div($html, 'local-documents-sheet-headblock');
-};
-$sheet = html_writer::div(
-    html_writer::empty_tag('img', ['src' => $OUTPUT->image_url('brand/seal-documents', 'local_documents'), 'alt' => '',
-        'class' => 'local-documents-sheet-seal'])
-    . $headerblock($school['name'], [$school['legalname']])
-    . $headerblock($unit['name'], [$unit['email'], $unit['phone']]),
-    'local-documents-sheet-header');
-if ($bundle['type']->subject === 'none' && trim((string)($values['f.destinatario'] ?? '')) !== '') {
-    $sheet .= html_writer::div(html_writer::div(s($values['f.destinatario']), 'fw-bold')
-        . implode('', array_map(static fn($line) => html_writer::div(s($line)), array_filter([$values['f.cargo'] ?? '',
-            $values['f.institucion'] ?? '', $values['f.correo'] ?? ''], static fn($line) => trim((string)$line) !== ''))),
-        'local-documents-sheet-recipient');
-}
-$sheet .= html_writer::div(s(templates::plain((string)$bundle['doc']->title, $values)), 'local-documents-sheet-title')
-    . html_writer::div($composed['bodyhtml'], 'local-documents-sheet-body');
-$signers = '';
-foreach ($composed['signers'] as $signer) {
-    $signers .= html_writer::div(html_writer::div(s($signer['name']) ?: '&nbsp;', 'fw-bold')
-        . html_writer::div(s($signer['title']), 'local-documents-sheet-muted')
-        . html_writer::div(s(trim(($signer['email'] ?? '') . ' ' . ($signer['phone'] ?? ''))), 'local-documents-sheet-muted'),
-        'local-documents-sheet-signer');
-}
-echo html_writer::div($sheet . html_writer::div($signers, 'local-documents-sheet-signers'), 'local-documents-sheet');
+echo ui::sheet($bundle, $composed);
 echo html_writer::tag('details', html_writer::tag('summary', get_string('placeholders', 'local_documents'))
     . html_writer::alist(array_map(static fn($k, $v) => html_writer::tag('code', '{{' . s($k) . '}}') . ' — ' . s($v),
         array_keys(templates::known_placeholders()), templates::known_placeholders()), ['class' => 'small mt-2']),

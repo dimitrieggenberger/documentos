@@ -49,6 +49,13 @@ $capabilities = [
         'contextlevel' => CONTEXT_SYSTEM,
         'archetypes' => ['manager' => CAP_ALLOW],
     ],
+    // Create and edit issuing units: their head (who signs) and the documents each may issue.
+    'local/documents:manageunits' => [
+        'riskbitmask' => RISK_CONFIG | RISK_PERSONAL,
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_SYSTEM,
+        'archetypes' => ['manager' => CAP_ALLOW],
+    ],
     // Edit the series catalogue, document types and their templates.
     'local/documents:managetemplates' => [
         'riskbitmask' => RISK_CONFIG,

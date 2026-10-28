@@ -86,7 +86,9 @@
     font-weight: 500;
 }
 
-#page-local-documents-area .local-documents-bodyfield {
+/* The text of a template or a draft: Moodle puts the field's class on its row, so the textarea is found by its data. */
+#page-local-documents-area textarea[data-placeholders],
+#page-local-documents-area textarea.local-documents-bodyfield {
     font-family: SFMono-Regular, Menlo, Consolas, monospace;
     font-size: var(--ld-text-xs);
     width: 100%;
@@ -188,6 +190,60 @@
     background: var(--lg-bad-bg, #f9dcdf);
     color: var(--lg-bad, #a12734);
     text-decoration: line-through;
+}
+
+/* The text toolbar (editor.js): markup buttons and the data picker over the textarea. */
+#page-local-documents-area .local-documents-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 4px;
+}
+
+#page-local-documents-area .local-documents-toolbar .btn {
+    min-width: 32px;
+}
+
+#page-local-documents-area .local-documents-toolbar select {
+    width: auto;
+    max-width: 100%;
+}
+
+#page-local-documents-area .local-documents-sheet-approval {
+    color: #6a737b;
+    font-size: 10px;
+    font-style: italic;
+}
+
+#page-local-documents-area .local-documents-sheet-attachments {
+    margin-top: 24px;
+}
+
+/* Signatures waiting for me: one card per document (Working Screens 5). */
+#page-local-documents-area .local-documents-tasks {
+    display: grid;
+    gap: 12px;
+}
+
+#page-local-documents-area .local-documents-task {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    background: var(--ld-surface);
+    border: 1px solid var(--ld-border);
+    border-radius: var(--ld-radius);
+    box-shadow: var(--ld-shadow);
+    padding: 16px 20px;
+}
+
+#page-local-documents-area .local-documents-task-title {
+    font-weight: 600;
+}
+
+#page-local-documents-area .local-documents-task-meta {
+    color: var(--ld-muted);
+    font-size: var(--ld-text-xs);
 }
 
 /* Public verification page (embedded layout). */

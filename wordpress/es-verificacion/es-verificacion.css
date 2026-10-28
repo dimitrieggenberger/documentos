@@ -35,3 +35,6 @@
     .es-verif__facts { grid-template-columns: 1fr; }
     .es-verif__facts dd { margin-bottom: 8px; }
 }
+.es-verif .es-verif__result h3.es-verif__subhead { font-size: 15px; line-height: 1.4; font-weight: 600; margin: 16px 0 4px; }
+.es-verif__attachments { margin: 0; padding-left: 20px; font-size: 14px; }
+.es-verif__hash { display: block; color: #5c6670; font-size: 12px; overflow-wrap: anywhere; }

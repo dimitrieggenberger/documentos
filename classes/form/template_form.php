@@ -23,6 +23,7 @@ require_once($CFG->libdir . '/formslib.php');
 
 use local_documents\local\config;
 use local_documents\local\templates;
+use local_documents\local\units;
 
 /**
  * A document type and its template; saving changed wording adds a version.
@@ -78,13 +79,31 @@ class template_form extends \moodleform {
         $mform->addHelpButton('validitydays', 'validitydays', 'local_documents');
         $mform->addElement('advcheckbox', 'enabled', get_string('enabled', 'local_documents'));
 
+        $mform->addElement('header', 'signhdr', get_string('requiredsignatures', 'local_documents'));
+        $mform->setExpanded('signhdr');
+        $unitoptions = [0 => get_string('nosignature', 'local_documents')];
+        foreach (units::all() as $unit) {
+            $details = units::details($unit);
+            $unitoptions[$unit->id] = $unit->code . ' — ' . $unit->name
+                . ($details['signername'] !== '' ? ' (' . $details['signername'] . ')' : '');
+        }
+        for ($i = 1; $i <= 3; $i++) {
+            $mform->addElement('select', 'signer' . $i, get_string('signer', 'local_documents', $i), $unitoptions);
+        }
+        $mform->addHelpButton('signer1', 'requiredsignatures', 'local_documents');
+        if (!empty($this->_customdata['issuers'])) {
+            $mform->addElement('static', 'issuers', get_string('unitsthatissue', 'local_documents'),
+                $this->_customdata['issuers']);
+        }
+
         $mform->addElement('header', 'tplhdr', get_string('tplhdr', 'local_documents'));
         $mform->setExpanded('tplhdr');
         $mform->addElement('text', 'title', get_string('printedtitle', 'local_documents'), ['size' => 60]);
         $mform->setType('title', PARAM_TEXT);
         $mform->addRule('title', null, 'required', null, 'client');
         $mform->addElement('textarea', 'body', get_string('body', 'local_documents'),
-            ['rows' => 18, 'cols' => 90, 'class' => 'local-documents-bodyfield']);
+            ['rows' => 18, 'cols' => 90, 'class' => 'local-documents-bodyfield']
+            + templates::editor_attributes($this->_customdata['current'] ?? null));
         $mform->setType('body', PARAM_RAW);
         $mform->addRule('body', null, 'required', null, 'client');
         $mform->addHelpButton('body', 'body', 'local_documents');
@@ -92,7 +111,6 @@ class template_form extends \moodleform {
             ['rows' => 6, 'cols' => 90, 'class' => 'local-documents-bodyfield']);
         $mform->setType('fields', PARAM_RAW);
         $mform->addHelpButton('fields', 'fields', 'local_documents');
-        $mform->addElement('select', 'signatories', get_string('signatorycount', 'local_documents'), [1 => 1, 2 => 2]);
         $mform->addElement('advcheckbox', 'allowbodyedit', get_string('allowbodyedit', 'local_documents'));
         $mform->addHelpButton('allowbodyedit', 'allowbodyedit', 'local_documents');
         $mform->addElement('textarea', 'changenote', get_string('changenote', 'local_documents'), ['rows' => 2, 'cols' => 90]);
@@ -116,6 +134,10 @@ class template_form extends \moodleform {
         if ($changed && trim((string)($data['changenote'] ?? '')) === '') {
             $errors['changenote'] = get_string('changenoterequired', 'local_documents');
         }
+        $signers = array_filter([(int)($data['signer1'] ?? 0), (int)($data['signer2'] ?? 0), (int)($data['signer3'] ?? 0)]);
+        if (count($signers) !== count(array_unique($signers))) {
+            $errors['signer2'] = get_string('signerrepeated', 'local_documents');
+        }
         if ($problems = templates::validate_fields((string)($data['fields'] ?? ''))) {
             $errors['fields'] = implode('<br>', $problems);
         }
@@ -134,7 +156,6 @@ class template_form extends \moodleform {
         return $norm($current->title) !== $norm($data['title'] ?? '')
             || $norm($current->body) !== $norm($data['body'] ?? '')
             || $norm($current->fields) !== $norm($data['fields'] ?? '')
-            || (int)$current->signatories !== (int)($data['signatories'] ?? 1)
             || (int)$current->allowbodyedit !== (int)!empty($data['allowbodyedit']);
     }
 }

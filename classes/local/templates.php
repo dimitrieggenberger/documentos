@@ -24,7 +24,8 @@ namespace local_documents\local;
  *
  * Markup, kept small so the letterhead stays the school's and not the
  * issuer's: blank lines separate paragraphs, a single line break stays one,
- * **text** is bold, a paragraph starting with "= " is centred. Placeholders
+ * **text** is bold, *text* is italic, a paragraph starting with "= " is
+ * centred, a paragraph whose lines all start with "- " is a bulleted list. Placeholders
  * are {{key}}; {{key|before|after}} prints the text around the value only when
  * the value is not empty. {{tabla.notas}} and {{tabla.asistencia}} on a
  * paragraph of their own become the tables.
@@ -42,7 +43,7 @@ class templates {
      * Add a template version and make it the type's current one.
      *
      * @param int $typeid
-     * @param array $data title, body, fields, signatories, allowbodyedit, changenote
+     * @param array $data title, body, fields, allowbodyedit, changenote
      * @param int $userid
      * @return int the new version's id
      */
@@ -56,7 +57,7 @@ class templates {
             'title' => trim((string)$data['title']),
             'body' => str_replace("\r\n", "\n", (string)$data['body']),
             'fields' => str_replace("\r\n", "\n", trim((string)($data['fields'] ?? ''))),
-            'signatories' => max(1, min(2, (int)($data['signatories'] ?? 1))),
+            'signatories' => 0,
             'allowbodyedit' => empty($data['allowbodyedit']) ? 0 : 1,
             'changenote' => trim((string)($data['changenote'] ?? '')),
             'createdby' => $userid,
@@ -165,12 +166,27 @@ class templates {
                 $paragraph = substr($paragraph, 2);
             }
             // Tables in running text are dropped: they only belong on a line of their own.
-            $paragraph = preg_replace('/\x01\d+\x01/', '', $paragraph);
-            $paragraph = preg_replace('/\*\*(.+?)\*\*/su', '<b>$1</b>', $paragraph);
-            $paragraph = nl2br($paragraph, false);
-            $html .= '<p style="text-align:' . $align . ';">' . $paragraph . '</p>';
+            $paragraph = self::inline(preg_replace('/\x01\d+\x01/', '', $paragraph));
+            $lines = preg_split('/\n/', $paragraph);
+            if (count(array_filter($lines, static fn($line) => strpos(ltrim($line), '- ') === 0)) === count($lines)) {
+                $items = array_map(static fn($line) => '<li>' . substr(ltrim($line), 2) . '</li>', $lines);
+                $html .= '<ul>' . implode('', $items) . '</ul>';
+                continue;
+            }
+            $html .= '<p style="text-align:' . $align . ';">' . nl2br($paragraph, false) . '</p>';
         }
         return $html;
+    }
+
+    /**
+     * Bold (**text**) and italic (*text*) inside an already escaped line.
+     *
+     * @param string $text
+     * @return string
+     */
+    private static function inline(string $text): string {
+        $text = preg_replace('/\*\*(.+?)\*\*/su', '<b>$1</b>', $text);
+        return preg_replace('/(?<![*\w])\*(?!\s)([^*\n]+?)(?<!\s)\*(?![*\w])/u', '<i>$1</i>', $text);
     }
 
     /**
@@ -249,7 +265,7 @@ class templates {
      * @return array<string, string> key => what it prints
      */
     public static function known_placeholders(): array {
-        $keys = ['school.name', 'school.sace', 'school.city', 'school.department', 'school.jornada',
+        $keys = ['school.name', 'school.officialname', 'school.legalname', 'school.sace', 'school.city', 'school.department', 'school.jornada',
             'date.long', 'date.words', 'holder.name', 'holder.idnumber', 'g.el', 'g.al', 'g.del', 'g.o',
             'student.gradename', 'student.level', 'student.yearlabel', 'student.lastquarter', 'student.birthdate',
             'staff.position', 'staff.startdate', 'staff.years', 'staff.courses',
@@ -259,6 +275,34 @@ class templates {
             $result[$key] = get_string('ph_' . str_replace('.', '_', $key), 'local_documents');
         }
         return $result;
+    }
+
+    /**
+     * The data attributes that give a text field its toolbar (editor.js): the labels and the placeholders.
+     *
+     * @param \stdClass|null $tplver the template version, for its own fields
+     * @param bool $withplaceholders false for a field's own text, where placeholders are not filled in
+     * @return array
+     */
+    public static function editor_attributes(?\stdClass $tplver, bool $withplaceholders = true): array {
+        global $PAGE;
+        static $loaded = false;
+        if (!$loaded) {
+            $PAGE->requires->js(new \moodle_url('/local/documents/editor.js'));
+            $loaded = true;
+        }
+        $placeholders = $withplaceholders ? self::known_placeholders() : [];
+        if ($tplver && $withplaceholders) {
+            foreach (self::parse_fields((string)$tplver->fields) as $key => $field) {
+                $placeholders['f.' . $key] = $field['label'];
+            }
+        }
+        $labels = [];
+        foreach (['toolbar', 'bold', 'italic', 'center', 'list', 'insert'] as $key) {
+            $labels[$key] = get_string('editor' . $key, 'local_documents');
+        }
+        return ['data-placeholders' => json_encode((object)$placeholders, JSON_UNESCAPED_UNICODE),
+            'data-labels' => json_encode($labels, JSON_UNESCAPED_UNICODE)];
     }
 
     /**

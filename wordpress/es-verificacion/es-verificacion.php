@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Verificación de documentos (EuropaSchule)
  * Description: Página pública para verificar los documentos oficiales emitidos en la plataforma escolar (Moodle, local_documents): el código QR de cada constancia o certificación abre esta página. Shortcode: [es_verificacion].
- * Version: 0.2.0
+ * Version: 0.3.0
  * Requires at least: 6.0
  * Requires PHP: 8.1
  * Author: Educación Helvética SA / EuropaSchule
@@ -129,8 +129,8 @@ function es_verificacion_icon(string $tone): string {
  * @return string
  */
 function es_verificacion_shortcode(): string {
-    wp_enqueue_style('es-verificacion', plugins_url('es-verificacion.css', __FILE__), [], '0.2.0');
-    wp_enqueue_script('es-verificacion', plugins_url('es-verificacion.js', __FILE__), [], '0.2.0', true);
+    wp_enqueue_style('es-verificacion', plugins_url('es-verificacion.css', __FILE__), [], '0.3.0');
+    wp_enqueue_script('es-verificacion', plugins_url('es-verificacion.js', __FILE__), [], '0.3.0', true);
 
     $code = isset($_GET['c']) ? es_verificacion_clean_code(sanitize_text_field(wp_unslash($_GET['c']))) : '';
     $display = $code !== '' ? implode('-', str_split($code, 4)) : '';
@@ -177,11 +177,28 @@ function es_verificacion_shortcode(): string {
                 }
             }
             $html .= '</dl>';
+            // The attachments are part of the document: their names and hashes are printed in its index.
+            $files = [];
             if (!empty($result['sha256']) && preg_match('/^[0-9a-f]{64}$/', (string)$result['sha256'])) {
-                $html .= '<div class="es-verif__file" data-sha="' . esc_attr($result['sha256']) . '">';
-                $html .= '<p class="es-verif__filelead">¿Tiene el PDF? Compruebe que es el original, sin cambios.</p>';
-                $html .= '<label class="es-verif__filebtn">Elegir el PDF'
-                    . '<input id="es-verif-file" type="file" accept="application/pdf,.pdf"></label>';
+                $files[] = ['name' => (string)$result['title'], 'sha256' => (string)$result['sha256']];
+            }
+            if (!empty($result['attachments']) && is_array($result['attachments'])) {
+                $html .= '<h3 class="es-verif__subhead">Adjuntos</h3><ol class="es-verif__attachments">';
+                foreach ($result['attachments'] as $attachment) {
+                    if (!is_array($attachment) || !preg_match('/^[0-9a-f]{64}$/', (string)($attachment['sha256'] ?? ''))) {
+                        continue;
+                    }
+                    $files[] = ['name' => (string)$attachment['name'], 'sha256' => (string)$attachment['sha256']];
+                    $html .= '<li>' . esc_html((string)$attachment['name']) . ' · ' . esc_html(size_format((int)($attachment['size'] ?? 0)))
+                        . '<span class="es-verif__hash">SHA-256 ' . esc_html((string)$attachment['sha256']) . '</span></li>';
+                }
+                $html .= '</ol>';
+            }
+            if ($files) {
+                $html .= '<div class="es-verif__file" data-files="' . esc_attr(wp_json_encode($files)) . '">';
+                $html .= '<p class="es-verif__filelead">¿Tiene el PDF o un adjunto? Compruebe que es el original, sin cambios.</p>';
+                $html .= '<label class="es-verif__filebtn">Elegir el archivo'
+                    . '<input id="es-verif-file" type="file" accept="application/pdf,.pdf,image/png,image/jpeg"></label>';
                 $html .= '<p class="es-verif__filemsg" role="status"></p>';
                 $html .= '<p class="es-verif__hint">El archivo se revisa en su navegador; no se envía a ningún servidor.</p>';
                 $html .= '</div>';

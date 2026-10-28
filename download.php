@@ -15,7 +15,10 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * The PDF of a document: the stored file once issued, a marked preview while a draft.
+ * The PDF of a document (the stored file once issued, a marked preview before) or one of its attachments.
+ *
+ * Staff with the view capability may open any; the head of a unit whose
+ * signature is asked for may open the document they are to sign.
  *
  * @package   local_documents
  * @copyright Educación Helvética SA / EuropaSchule
@@ -30,14 +33,32 @@ use local_documents\local\pdf;
 require_login();
 $context = context_system::instance();
 $PAGE->set_context($context);
-require_capability('local/documents:view', $context);
 
 $id = required_param('id', PARAM_INT);
+$fileid = optional_param('file', 0, PARAM_INT);
 $bundle = documents::get($id);
 $doc = $bundle['doc'];
 
-if ($doc->status === documents::STATUS_DRAFT) {
-    require_capability('local/documents:issue', $context);
+$signer = $doc->status === documents::STATUS_PENDING && $DB->record_exists('local_documents_approval',
+    ['docid' => $id, 'userid' => $USER->id, 'status' => 'pending']);
+if (!$signer) {
+    require_capability('local/documents:view', $context);
+}
+
+if ($fileid) {
+    $file = documents::attachment_file($doc, $fileid);
+    if (!$file) {
+        throw new moodle_exception('filemissing', 'local_documents');
+    }
+    documents::log($id, 'downloaded', (int)$USER->id, $file->get_filename());
+    \core\session\manager::write_close();
+    send_stored_file($file, 0, 0, true);
+}
+
+if (in_array($doc->status, [documents::STATUS_DRAFT, documents::STATUS_PENDING], true)) {
+    if (!$signer) {
+        require_capability('local/documents:issue', $context);
+    }
     $content = pdf::render($bundle, false);
     documents::log($id, 'previewed', (int)$USER->id);
     send_file($content, documents::filename($doc), 0, 0, true, false, 'application/pdf');
