@@ -130,7 +130,7 @@ if ($doc->status === documents::STATUS_DRAFT && $canissue) {
     $actions[] = html_writer::link(new moodle_url('/local/documents/edit.php', ['id' => $id]),
         get_string('continuedraft', 'local_documents'), ['class' => 'btn btn-primary']);
 } else if ($doc->status === documents::STATUS_PENDING) {
-    if ($DB->record_exists('local_documents_approval', ['docid' => $id, 'userid' => $USER->id, 'status' => 'pending'])) {
+    if (documents::my_approvals($id, (int)$USER->id)) {
         $actions[] = html_writer::link(new moodle_url('/local/documents/sign.php', ['id' => $id]),
             get_string('review', 'local_documents'), ['class' => 'btn btn-primary']);
     }
@@ -169,7 +169,8 @@ if ($composed['signers']) {
         get_string('status', 'local_documents')];
     foreach ($composed['signers'] as $signer) {
         $st->data[] = [s($signer['unitcode'] . ' — ' . $signer['unitname']), s(trim($signer['name'] . ', '
-            . $signer['title'], ', ')), !empty($signer['approvedon'])
+            . (!empty($signer['substitutefor']) ? get_string('substitutefor', 'local_documents', $signer['substitutefor'])
+                : $signer['title']), ', ')), !empty($signer['approvedon'])
             ? html_writer::span(get_string('approvedon', 'local_documents', userdate((int)$signer['approvedon'],
                 get_string('strftimedatetimeshort', 'langconfig'))), 'badge badge-success bg-success')
             : html_writer::span(get_string('signaturepending', 'local_documents'), 'badge badge-warning bg-warning text-dark')];

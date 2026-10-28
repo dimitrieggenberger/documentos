@@ -166,6 +166,9 @@
         <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="The Moodle user who signs for the unit"/>
         <FIELD NAME="signername" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="Name as printed, e.g. Lic. Rosa Gomez; empty: the user's full name"/>
         <FIELD NAME="signertitle" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="Position as printed, e.g. Directora"/>
+        <FIELD NAME="substituteid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Who signs in substitution of the head, 0 for nobody"/>
+        <FIELD NAME="substitutefrom" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="First day of the substitution, 0 from now"/>
+        <FIELD NAME="substituteuntil" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Last day of the substitution, 0 until it is ended"/>
         <FIELD NAME="enabled" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1" SEQUENCE="false"/>
         <FIELD NAME="sortorder" TYPE="int" LENGTH="5" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
@@ -194,7 +197,7 @@
         <INDEX NAME="unittype" UNIQUE="true" FIELDS="unitid, typeid"/>
       </INDEXES>
     </TABLE>
-    <TABLE NAME="local_documents_signer" COMMENT="The signatures a document type requires, in order: none, one or several units">
+    <TABLE NAME="local_documents_signer" COMMENT="The signatures a document type requires, in order: none, one or several units; unitid 0 is the issuing unit">
       <FIELDS>
         <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
         <FIELD NAME="typeid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
@@ -216,6 +219,7 @@
         <FIELD NAME="docid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
         <FIELD NAME="unitid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
         <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Who must sign"/>
+        <FIELD NAME="onbehalfof" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="The head the signer substitutes, 0 when the head signs"/>
         <FIELD NAME="sortorder" TYPE="int" LENGTH="5" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="status" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="pending" SEQUENCE="false" COMMENT="pending, approved"/>
         <FIELD NAME="timerequested" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>

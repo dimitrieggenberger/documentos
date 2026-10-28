@@ -113,6 +113,14 @@ class documents {
         if ($allowed && !in_array($unitcode, array_column($allowed, 'code'), true)) {
             $unitcode = (string)reset($allowed)->code;
         }
+        // A letter signed by its issuing unit starts on the creator's own: the Gerente General's memorandum is GG's.
+        $ownunit = in_array(units::ISSUER, units::signer_slots((int)$type->id), true) ? $allowed : [];
+        foreach ($ownunit as $unit) {
+            if ((int)$unit->userid === $creatorid && $creatorid > 0) {
+                $unitcode = (string)$unit->code;
+                break;
+            }
+        }
         $id = (int)$DB->insert_record('local_documents_doc', (object)[
             'typeid' => $type->id, 'tplverid' => $tplver->id, 'seriesid' => $series->id, 'status' => self::STATUS_DRAFT,
             'userid' => $userid, 'holdername' => $prefill['holdername'], 'holderidnumber' => $prefill['holderidnumber'],
@@ -282,15 +290,17 @@ class documents {
         $transaction = $DB->start_delegated_transaction();
         $DB->delete_records('local_documents_approval', ['docid' => $id]);
         $waiting = [];
-        foreach (array_values(units::signers_for_type((int)$doc->typeid)) as $i => $unit) {
-            $own = (int)$unit->userid === $userid;
+        foreach (units::required_units((int)$doc->typeid, (string)$doc->unitcode) as $i => $unit) {
+            // The head signs, or whoever substitutes them today.
+            $signer = units::signer_now($unit, $now);
+            $own = $signer['userid'] === $userid;
             $DB->insert_record('local_documents_approval', (object)['docid' => $id, 'unitid' => $unit->id,
-                'userid' => $unit->userid, 'sortorder' => $i, 'status' => $own ? 'approved' : 'pending',
-                'timerequested' => $now, 'timedecided' => $own ? $now : 0]);
+                'userid' => $signer['userid'], 'onbehalfof' => $signer['onbehalfof'], 'sortorder' => $i,
+                'status' => $own ? 'approved' : 'pending', 'timerequested' => $now, 'timedecided' => $own ? $now : 0]);
             if ($own) {
                 self::log($id, 'approved', $userid, $unit->code);
             } else {
-                $waiting[(int)$unit->userid] = (int)$unit->userid;
+                $waiting[$signer['userid']] = $signer['userid'];
             }
         }
         $data = $bundle['data'];
@@ -319,14 +329,16 @@ class documents {
     public static function approve(int $id, int $userid): bool {
         global $DB;
         $doc = $DB->get_record('local_documents_doc', ['id' => $id], '*', MUST_EXIST);
-        $mine = $DB->get_records('local_documents_approval', ['docid' => $id, 'userid' => $userid, 'status' => 'pending']);
-        if ($doc->status !== self::STATUS_PENDING || !$mine) {
+        $mine = $doc->status === self::STATUS_PENDING ? self::my_approvals($id, $userid) : [];
+        if (!$mine) {
             throw new \moodle_exception('nothingtosign', 'local_documents');
         }
         $now = time();
         foreach ($mine as $approval) {
+            // Whoever signs is recorded, with the head they substitute when it is not the head.
+            $headid = (int)$DB->get_field('local_documents_unit', 'userid', ['id' => $approval->unitid]);
             $DB->update_record('local_documents_approval', (object)['id' => $approval->id, 'status' => 'approved',
-                'timedecided' => $now]);
+                'userid' => $userid, 'onbehalfof' => $userid === $headid ? 0 : $headid, 'timedecided' => $now]);
             self::log($id, 'approved', $userid, (string)$DB->get_field('local_documents_unit', 'code',
                 ['id' => $approval->unitid]));
         }
@@ -351,9 +363,7 @@ class documents {
     public static function reject(int $id, int $userid, string $note): void {
         global $DB;
         $doc = $DB->get_record('local_documents_doc', ['id' => $id], '*', MUST_EXIST);
-        if ($doc->status !== self::STATUS_PENDING
-                || !$DB->record_exists('local_documents_approval', ['docid' => $id, 'userid' => $userid,
-                    'status' => 'pending'])) {
+        if ($doc->status !== self::STATUS_PENDING || !self::my_approvals($id, $userid)) {
             throw new \moodle_exception('nothingtosign', 'local_documents');
         }
         $DB->delete_records('local_documents_approval', ['docid' => $id]);
@@ -362,6 +372,25 @@ class documents {
         self::log($id, 'rejected', $userid, trim($note));
         $data = self::data($doc);
         notifications::rejected($id, (int)($data['submittedby'] ?? $doc->createdby), $userid, trim($note));
+    }
+
+    /**
+     * The signatures on a document a person may give now: asked of them, or of the unit they sign for today.
+     *
+     * @param int $id
+     * @param int $userid
+     * @return \stdClass[] pending approvals
+     */
+    public static function my_approvals(int $id, int $userid): array {
+        global $DB;
+        $mine = [];
+        foreach ($DB->get_records('local_documents_approval', ['docid' => $id, 'status' => 'pending']) as $approval) {
+            $unit = $DB->get_record('local_documents_unit', ['id' => $approval->unitid]);
+            if ((int)$approval->userid === $userid || ($unit && units::signer_now($unit)['userid'] === $userid)) {
+                $mine[] = $approval;
+            }
+        }
+        return $mine;
     }
 
     /**
@@ -400,7 +429,7 @@ class documents {
         if (!in_array($doc->status, [self::STATUS_DRAFT, self::STATUS_PENDING], true)) {
             throw new \moodle_exception('notadraft', 'local_documents');
         }
-        $required = count(units::signers_for_type((int)$doc->typeid));
+        $required = count(units::required_units((int)$doc->typeid, (string)$doc->unitcode));
         $given = $DB->count_records('local_documents_approval', ['docid' => $id, 'status' => 'approved']);
         $open = $DB->count_records('local_documents_approval', ['docid' => $id, 'status' => 'pending']);
         if ($open > 0 || ($required > 0 && $given === 0)) {

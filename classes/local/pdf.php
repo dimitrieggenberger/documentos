@@ -176,7 +176,11 @@ class pdf {
             $pdf->Cell(letter_pdf::SIGNER_W, 10, (string)$signer['name'], 0, 2, 'L', false, '', 1);
             $pdf->SetTextColor(...letter_pdf::MUTED);
             $pdf->SetFont(letter_pdf::FONT, '', 8);
-            if (trim((string)$signer['title']) !== '') {
+            if (!empty($signer['substitutefor'])) {
+                // A substitute: "En sustitución de funciones de Lic. Rosa Gómez, Directora", wrapped in the column.
+                $pdf->MultiCell(letter_pdf::SIGNER_W, 10, $sm->get_string('pdfsubstitute', 'local_documents',
+                    $signer['substitutefor'], 'es'), 0, 'L', false, 1, $x);
+            } else if (trim((string)$signer['title']) !== '') {
                 $pdf->Cell(letter_pdf::SIGNER_W, 10, (string)$signer['title'], 0, 2, 'L', false, '', 1);
             }
             $contact = array_values(array_filter([(string)($signer['email'] ?? ''), (string)($signer['phone'] ?? '')],

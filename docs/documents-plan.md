@@ -17,7 +17,7 @@ code on the sheet opens the public verification page on the school's website.
 ## 2. Number
 
 `SERIE-CORRELATIVO-SACE-AÑO-UNIDAD-JORNADA`, art. 17 for centros educativos:
-`CERTRAD-075-050100012M02-2026-DCE-JM`, printed on the sheet with en dashes
+`CERTRAD-075-050100012M02-2026-DCE-EX`, printed on the sheet with en dashes
 and the school's name under it, as page 10 of the instructivo shows.
 
 - **Series**: the siglas of the TRD (CONSES, CERNOT, OF, ...). A school's part
@@ -134,8 +134,12 @@ Decided 2026-10-28, defaults of the settings: commercial name **EuropaSchule
 San Pedro Sula** (the letterhead), official name **Centro Educativo No
 Gubernamental Trilingüe EuropaSchule** (under the number and in the text,
 `{{school.officialname}}`), legal name **Educación Helvética SA** (under the
-commercial name in the letterhead), SACE code **050101072T03**. The jornada
-stays JM until the school says otherwise.
+commercial name in the letterhead), SACE code **050101072T03**.
+
+The school works a **jornada extendida**: the sixth part of the number is
+**EX** (decided 2026-10-28; the abbreviation is the school's reading, to
+confirm against the SEDUC code list). The setting also offers JM, JV, JN and
+JD.
 
 ## 9. Issuing units and signatures
 
@@ -150,7 +154,13 @@ stays JM until the school says otherwise.
   (`local_documents_signer`): none, one or up to three units, in order, set on
   the template page. Defaults: constancias and staff documents, Dirección;
   certificaciones, Secretaría then Dirección; oficio and convenio, Dirección;
-  circular and memorándum, **none**.
+  circular and memorándum, **the issuing unit** (below).
+- **Circular and memorándum are issued by any unit** (decided 2026-10-28):
+  Dirección, Subdirección, Secretaría, Gerencia General (GG) and Gerencia
+  Académica (GA, both added by upgrade 2026103000) may issue them, and they
+  are signed by **the head of the issuing unit** (signature slot "the issuing
+  unit", stored as unit 0). A head who starts one gets their own unit, so
+  they issue it alone; the memorándum's "De:" is `{{unit.name}}`.
 - **Sending a draft out** (`documents::submit()`): every required signature
   becomes an approval (`local_documents_approval`) for the unit's head; the
   sender signs at once for every unit they head. Nothing left to sign: issued
@@ -166,6 +176,15 @@ stays JM until the school says otherwise.
 - The sheet prints, in each signer's room to sign, "Aprobado digitalmente el
   …"; the verification page says who signed and when.
 - A new head of a unit takes over the signatures still waiting on it.
+- **Substitution** (decided 2026-10-28): on the unit, a Moodle user who signs
+  *en sustitución de funciones* of the head, with an optional first and last
+  day (inclusive; no dates, until removed). While it is in effect, the
+  signatures the unit gives go to the substitute (those already waiting move
+  to them, and they are told), the approval records whom they signed for
+  (`onbehalfof`), and the sheet prints their name with "En sustitución de
+  funciones de Lic. Rosa Gómez, Directora" instead of the position; the
+  record, the signing page and the verification page say the same. The head
+  never loses the unit: when the period ends, signing returns to them.
 - Messages: `signaturerequest` to the signer, `signatureresult` to the sender
   (issued, or sent back with the note).
 
@@ -224,7 +243,6 @@ the result. No colours, sizes or fonts, by design.
 
 - Signature and seal images per signer (today the approval date stands in
   the room to sign).
-- A substitute head while the head is away.
 - The full TRD as an importable catalogue.
 - Students and staff requesting a document from their own page.
 - A Certificación de estudios over several school years.

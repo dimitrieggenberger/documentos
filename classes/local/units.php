@@ -31,6 +31,15 @@ namespace local_documents\local;
  */
 class units {
 
+    /** @var string[] The units a school starts with: code => name. */
+    const DEFAULT_UNITS = [
+        'DCE' => 'Dirección del Centro Educativo',
+        'SDCE' => 'Subdirección del Centro Educativo',
+        'SCE' => 'Secretaría del Centro Educativo',
+        'GG' => 'Gerencia General',
+        'GA' => 'Gerencia Académica',
+    ];
+
     /**
      * Every unit, in their order.
      *
@@ -67,19 +76,86 @@ class units {
                                    ORDER BY u.sortorder, u.code', [$typeid]);
     }
 
+    /** @var int The signature slot meaning "the head of whichever unit issues the document". */
+    const ISSUER = 0;
+
     /**
-     * The units whose signature a document type requires, in order; empty when it goes out unsigned.
+     * The signature slots of a document type, in order: unit ids, ISSUER for the issuing unit.
      *
      * @param int $typeid
-     * @return \stdClass[] in signing order
+     * @return int[]
      */
-    public static function signers_for_type(int $typeid): array {
+    public static function signer_slots(int $typeid): array {
         global $DB;
-        return array_values($DB->get_records_sql('SELECT u.*, s.sortorder AS signerorder
-                                                    FROM {local_documents_signer} s
-                                                    JOIN {local_documents_unit} u ON u.id = s.unitid
-                                                   WHERE s.typeid = ?
-                                                ORDER BY s.sortorder, s.id', [$typeid]));
+        return array_map('intval', $DB->get_fieldset_select('local_documents_signer', 'unitid', 'typeid = ? ORDER BY sortorder, id',
+            [$typeid]));
+    }
+
+    /**
+     * The units whose heads sign a document of a type issued by a unit, in order, each once.
+     *
+     * The ISSUER slot becomes the issuing unit; empty when the document goes out unsigned.
+     *
+     * @param int $typeid
+     * @param string $unitcode the issuing unit
+     * @return \stdClass[]
+     */
+    public static function required_units(int $typeid, string $unitcode): array {
+        global $DB;
+        $units = [];
+        foreach (self::signer_slots($typeid) as $unitid) {
+            $unit = $unitid === self::ISSUER ? self::by_code($unitcode)
+                : ($DB->get_record('local_documents_unit', ['id' => $unitid]) ?: null);
+            if ($unit && !isset($units[(int)$unit->id])) {
+                $units[(int)$unit->id] = $unit;
+            }
+        }
+        return array_values($units);
+    }
+
+    /**
+     * Who signs for a unit at a moment: its head, or the substitute while a substitution runs.
+     *
+     * @param \stdClass $unit
+     * @param int|null $time
+     * @return array{userid: int, onbehalfof: int} onbehalfof is the head when a substitute signs
+     */
+    public static function signer_now(\stdClass $unit, ?int $time = null): array {
+        $time = $time ?? time();
+        $substitute = (int)($unit->substituteid ?? 0);
+        $from = (int)($unit->substitutefrom ?? 0);
+        $until = (int)($unit->substituteuntil ?? 0);
+        $active = $substitute > 0 && $substitute !== (int)$unit->userid && ($from === 0 || $time >= $from)
+            && ($until === 0 || $time < $until + DAYSECS);
+        return $active ? ['userid' => $substitute, 'onbehalfof' => (int)$unit->userid]
+            : ['userid' => (int)$unit->userid, 'onbehalfof' => 0];
+    }
+
+    /**
+     * The documents waiting for a person's signature: as asked of them, or as the one signing for the unit now.
+     *
+     * @param int $userid
+     * @return int[] document ids
+     */
+    public static function signable_docids(int $userid): array {
+        global $DB;
+        if ($userid <= 0) {
+            return [];
+        }
+        $ids = [];
+        $rows = $DB->get_records_sql("SELECT a.id, a.docid, a.userid, a.unitid
+                                        FROM {local_documents_approval} a
+                                        JOIN {local_documents_doc} d ON d.id = a.docid
+                                       WHERE a.status = 'pending' AND d.status = 'pending'");
+        $units = $rows ? $DB->get_records_list('local_documents_unit', 'id', array_unique(array_column($rows, 'unitid')))
+            : [];
+        foreach ($rows as $row) {
+            $unit = $units[$row->unitid] ?? null;
+            if ((int)$row->userid === $userid || ($unit && self::signer_now($unit)['userid'] === $userid)) {
+                $ids[(int)$row->docid] = (int)$row->docid;
+            }
+        }
+        return array_values($ids);
     }
 
     /**
@@ -97,31 +173,39 @@ class units {
      * Set the units whose signature a type requires, in this order.
      *
      * @param int $typeid
-     * @param int[] $unitids
+     * @param int[] $unitids unit ids, -1 for the issuing unit, 0 ignored
      * @return void
      */
     public static function set_signers(int $typeid, array $unitids): void {
         global $DB;
         $DB->delete_records('local_documents_signer', ['typeid' => $typeid]);
         $order = 0;
-        foreach (array_unique(array_map('intval', $unitids)) as $unitid) {
-            if ($unitid > 0) {
-                $DB->insert_record('local_documents_signer', (object)['typeid' => $typeid, 'unitid' => $unitid,
-                    'sortorder' => $order++]);
+        // In forms 0 is "no signature" and -1 the issuing unit; stored, the issuing unit is ISSUER (0).
+        $slots = [];
+        foreach (array_map('intval', $unitids) as $unitid) {
+            if ($unitid === -1) {
+                $slots[self::ISSUER] = self::ISSUER;
+            } else if ($unitid > 0) {
+                $slots[$unitid] = $unitid;
             }
+        }
+        foreach ($slots as $unitid) {
+            $DB->insert_record('local_documents_signer', (object)['typeid' => $typeid, 'unitid' => $unitid,
+                'sortorder' => $order++]);
         }
     }
 
     /**
      * Create or update a unit and the types it may issue.
      *
-     * A new head takes over the signatures still waiting on the unit.
+     * A new head, or a substitution starting now, takes over the signatures still waiting on the unit.
      *
-     * @param \stdClass $data id (0 for new), code, name, email, phone, userid, signername, signertitle, enabled, typeids
+     * @param \stdClass $data id (0 for new), code, name, email, phone, userid, signername, signertitle,
+     *     substituteid, substitutefrom, substituteuntil, enabled, typeids
      * @return int the unit's id
      */
     public static function save(\stdClass $data): int {
-        global $DB;
+        global $DB, $USER;
         $now = time();
         $record = (object)[
             'code' => \core_text::strtoupper(trim((string)$data->code)),
@@ -131,6 +215,9 @@ class units {
             'userid' => (int)$data->userid,
             'signername' => trim((string)($data->signername ?? '')),
             'signertitle' => trim((string)($data->signertitle ?? '')),
+            'substituteid' => (int)($data->substituteid ?? 0),
+            'substitutefrom' => (int)($data->substitutefrom ?? 0),
+            'substituteuntil' => (int)($data->substituteuntil ?? 0),
             'enabled' => empty($data->enabled) ? 0 : 1,
             'timemodified' => $now,
         ];
@@ -138,8 +225,14 @@ class units {
         if (!empty($data->id)) {
             $record->id = (int)$data->id;
             $DB->update_record('local_documents_unit', $record);
-            $DB->set_field_select('local_documents_approval', 'userid', $record->userid, 'unitid = ? AND status = ?',
-                [$record->id, 'pending']);
+            // The signatures still waiting go to whoever signs for the unit now.
+            $signer = self::signer_now($record);
+            $moved = $DB->get_fieldset_sql("SELECT DISTINCT a.docid FROM {local_documents_approval} a
+                                              JOIN {local_documents_doc} d ON d.id = a.docid
+                                             WHERE a.unitid = ? AND a.status = 'pending' AND d.status = 'pending'
+                                               AND a.userid <> ?", [$record->id, $signer['userid']]);
+            $DB->execute("UPDATE {local_documents_approval} SET userid = ?, onbehalfof = ?
+                           WHERE unitid = ? AND status = 'pending'", [$signer['userid'], $signer['onbehalfof'], $record->id]);
         } else {
             $record->sortorder = (int)$DB->get_field_sql('SELECT COALESCE(MAX(sortorder), 0) + 10
                                                             FROM {local_documents_unit}');
@@ -155,6 +248,12 @@ class units {
             }
         }
         $transaction->allow_commit();
+        // Whoever now signs for the unit hears of the documents waiting for them.
+        foreach ($moved ?? [] as $docid) {
+            if ($signer['userid'] > 0) {
+                notifications::signature_requested((int)$docid, $signer['userid'], (int)$USER->id);
+            }
+        }
         return (int)$record->id;
     }
 
@@ -181,6 +280,35 @@ class units {
     }
 
     /**
+     * Open circulars and memorandums to every unit, signed by the issuing unit's head, and add the
+     * Gerencias: decided 2026-10-28 (anyone who heads a unit issues them). Re-runnable.
+     *
+     * @return void
+     */
+    public static function open_letters_to_all(): void {
+        global $DB;
+        foreach (self::DEFAULT_UNITS as $code => $name) {
+            if (!self::by_code($code) && $DB->record_exists('local_documents_unit', [])) {
+                self::save((object)['code' => $code, 'name' => $name, 'userid' => 0, 'enabled' => 1]);
+            }
+        }
+        foreach (['circular', 'memorandum'] as $shortname) {
+            $typeid = (int)$DB->get_field('local_documents_type', 'id', ['shortname' => $shortname]);
+            if (!$typeid) {
+                continue;
+            }
+            foreach (self::all() as $unit) {
+                if (!$DB->record_exists('local_documents_unittype', ['unitid' => $unit->id, 'typeid' => $typeid])) {
+                    $DB->insert_record('local_documents_unittype', (object)['unitid' => $unit->id, 'typeid' => $typeid]);
+                }
+            }
+            if (!$DB->record_exists('local_documents_signer', ['typeid' => $typeid])) {
+                self::set_signers($typeid, [-1]);
+            }
+        }
+    }
+
+    /**
      * Whether a user heads any unit (and so may have something to sign).
      *
      * @param int $userid
@@ -188,8 +316,8 @@ class units {
      */
     public static function is_signer(int $userid): bool {
         global $DB;
-        return $userid > 0 && ($DB->record_exists('local_documents_unit', ['userid' => $userid])
-            || $DB->record_exists('local_documents_approval', ['userid' => $userid, 'status' => 'pending']));
+        return $userid > 0 && ($DB->record_exists_select('local_documents_unit', 'userid = ? OR substituteid = ?',
+            [$userid, $userid]) || $DB->record_exists('local_documents_approval', ['userid' => $userid, 'status' => 'pending']));
     }
 
     /**
@@ -205,11 +333,11 @@ class units {
     public static function install_defaults(string $legacy = ''): void {
         global $DB;
         if ($DB->record_exists('local_documents_unit', [])) {
+            self::open_letters_to_all();
             return;
         }
-        $lines = trim($legacy) !== '' ? preg_split('/\R/', $legacy) : [
-            'DCE | Dirección del Centro Educativo', 'SDCE | Subdirección del Centro Educativo',
-            'SCE | Secretaría del Centro Educativo'];
+        $lines = trim($legacy) !== '' ? preg_split('/\R/', $legacy)
+            : array_map(static fn($code, $name) => "$code | $name", array_keys(self::DEFAULT_UNITS), self::DEFAULT_UNITS);
         $types = $DB->get_records_menu('local_documents_type', null, '', 'shortname, id');
         foreach ($lines as $line) {
             $parts = array_map('trim', explode('|', $line));
@@ -227,7 +355,9 @@ class units {
             }
             $unitids = [];
             foreach ($type['signers'] ?? [] as $code) {
-                if ($unit = self::by_code($code)) {
+                if ($code === 'ISSUER') {
+                    $unitids[] = -1;
+                } else if ($unit = self::by_code($code)) {
                     $unitids[] = (int)$unit->id;
                 }
             }

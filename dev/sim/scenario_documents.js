@@ -83,7 +83,7 @@ const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (
 
   await p.goto(recordurl);
   const number = (await p.locator('.local-documents-record .local-documents-number').innerText()).trim();
-  check(/^CONSES-\d{3}-050100099M01-\d{4}-DCE-JM$/.test(number), 'issue: number follows the nomenclature: ' + number);
+  check(/^CONSES-\d{3}-050100099M01-\d{4}-DCE-EX$/.test(number), 'issue: number follows the nomenclature: ' + number);
   const code = (await p.locator('.local-documents-record code').first().innerText()).trim();
   check(/^[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}$/.test(code), 'issue: verification code ' + code);
   check(await p.locator('a:has-text("Recall"), a:has-text("Anular")').count() === 0, 'secretary: no recall button');
@@ -164,6 +164,72 @@ const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (
   check(await a.locator('.local-documents-toolbar').count() >= 2 && await a.locator('.local-documents-toolbar button').count() >= 8, 'draft: toolbar on the letter text and on the wording');
   check(await a.locator('#fitem_id_attachments').count() === 1, 'draft: attachments upload');
   await shot(a, 'documents-draft-letter');
+
+  // Any unit issues circulars and memorandums: the Gerente General issues one alone, signed by himself.
+  const g = await login('mfuentes', 'Sim-Docs-2026!');
+  await g.goto(L + 'create.php');
+  await Promise.all([g.waitForNavigation(), g.click('.local-documents-typecard:has-text("Circular")')]);
+  await Promise.all([g.waitForNavigation(), g.click('button:has-text("Iniciar borrador"), button:has-text("Start draft")')]);
+  check(await g.inputValue('#id_unitcode') === 'GG', 'circular: starts on the Gerencia General');
+  check(/Mario Fuentes/.test(await g.locator('#fitem_id_signersstatic').innerText()), 'circular: signed by its own head');
+  await g.fill('#id_f_asunto', 'Horario de fin de año');
+  await g.fill('#id_f_texto', 'El último día de clases es el 28 de noviembre.');
+  check(/^(Emitir|Issue)/.test(await g.locator('#id_issue').inputValue()), 'circular: the sole signer issues');
+  await Promise.all([g.waitForNavigation(), g.click('#id_issue')]);
+  await Promise.all([g.waitForNavigation(), g.click('[role="main"] form button.btn-primary')]);
+  const circular = (await g.locator('.local-documents-record .local-documents-number').innerText()).trim();
+  check(/^CIR-\d{3}-050100099M01-\d{4}-GG-EX$/.test(circular), 'circular: numbered for GG: ' + circular);
+
+  // The director is away: Pablo Ortiz signs in substitution of her.
+  await a.goto(L + 'units.php');
+  const dceid = new URL(await a.locator('tr:has-text("DCE") a:has-text("Edit"), tr:has-text("DCE") a:has-text("Editar")')
+    .first().getAttribute('href'), BASE).searchParams.get('id');
+  await a.goto(L + 'units.php?id=' + dceid);
+  await a.click('#id_substitutehdr .ftoggler a, a[href="#id_substitutehdrcontainer"]').catch(() => {});
+  await a.locator('#fitem_id_substituteid input[type="text"]').fill('Ortiz');
+  await a.locator('#fitem_id_substituteid [role="option"]:has-text("Pablo Ortiz")').first().click();
+  await shot(a, 'documents-unit-substitute');
+  await Promise.all([a.waitForNavigation(), a.click('#id_submitbutton')]);
+  check(/Sustituido por Pablo Ortiz|Substituted by Pablo Ortiz/.test(await a.locator('table.generaltable').innerText()),
+    'units: the substitution in the list');
+  await shot(a, 'documents-units-substitute');
+
+  const sec = await login('ecastillo', 'Sim-Docs-2026!');
+  await sec.goto(L + 'create.php');
+  await Promise.all([sec.waitForNavigation(), sec.click('.local-documents-typecard:has-text("Oficio")')]);
+  await Promise.all([sec.waitForNavigation(), sec.click('button:has-text("Iniciar borrador"), button:has-text("Start draft")')]);
+  check(/Pablo Ortiz/.test(await sec.locator('#fitem_id_signersstatic').innerText()), 'substitute: asked to sign the oficio');
+  await sec.fill('#id_f_destinatario', 'Sra. Ana Prueba');
+  await sec.fill('#id_f_asunto', 'Constancia de reunión');
+  await sec.fill('#id_f_texto', 'Confirmamos la reunión del lunes.');
+  await Promise.all([sec.waitForNavigation(), sec.click('#id_issue')]);
+  await Promise.all([sec.waitForNavigation(), sec.click('[role="main"] form button.btn-primary')]);
+  const oficiourl = sec.url();
+  const oficioid = new URL(oficiourl).searchParams.get('id');
+  const o = await login('portiz', 'Test123!');
+  await o.goto(L + 'sign.php');
+  check(await o.locator(`.local-documents-task a[href*="sign.php?id=${oficioid}"]`).count() === 1, 'substitute: the oficio waits for him');
+  await o.goto(L + 'sign.php?id=' + oficioid);
+  await shot(o, 'documents-sign-substitute');
+  await Promise.all([o.waitForNavigation(), o.click('#ld-approve')]);
+  await sec.goto(oficiourl);
+  check(/sustitución de funciones de Lic\. Rosa Gómez|substitution of Lic\. Rosa Gómez/.test(await sec.locator('body').innerText()),
+    'substitute: the record says in whose substitution');
+  await shot(sec, 'documents-record-substitute');
+  const ocode = (await sec.locator('.local-documents-record code').first().innerText()).trim();
+  await pub.goto(L + 'verify.php?c=' + ocode);
+  check(/en sustitución de funciones de Lic\. Rosa Gómez/.test(await pub.locator('.local-documents-verify-result').innerText()),
+    'public: the substitution is verifiable');
+  const [opdf] = await Promise.all([sec.waitForEvent('download'),
+    sec.locator(`a[href$="download.php?id=${oficioid}"]`).first().click()]);
+  fs.copyFileSync(await opdf.path(), path.join(out, 'documents-oficio-substitute.pdf'));
+
+  // Back to normal: the substitution ends.
+  await a.goto(L + 'units.php?id=' + dceid);
+  await a.click('#id_substitutehdr .ftoggler a, a[href="#id_substitutehdrcontainer"]').catch(() => {});
+  await a.locator('#fitem_id_substituteid .form-autocomplete-selection [role="option"]').first().click();
+  await Promise.all([a.waitForNavigation(), a.click('#id_submitbutton')]);
+  check(!/Sustituido por|Substituted by/.test(await a.locator('table.generaltable').innerText()), 'units: substitution ended');
 
   // Phone width: the verification page fits.
   const phone = await (await b.newContext({ viewport: { width: 400, height: 860 }, isMobile: true })).newPage();

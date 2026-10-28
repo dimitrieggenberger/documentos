@@ -39,8 +39,7 @@ $fileid = optional_param('file', 0, PARAM_INT);
 $bundle = documents::get($id);
 $doc = $bundle['doc'];
 
-$signer = $doc->status === documents::STATUS_PENDING && $DB->record_exists('local_documents_approval',
-    ['docid' => $id, 'userid' => $USER->id, 'status' => 'pending']);
+$signer = $doc->status === documents::STATUS_PENDING && documents::my_approvals($id, (int)$USER->id);
 if (!$signer) {
     require_capability('local/documents:view', $context);
 }

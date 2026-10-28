@@ -26,8 +26,8 @@ namespace local_documents\local;
 class config {
 
     /** @var string[] Shift codes the instructivo uses, with their printed names. */
-    const JORNADAS = ['JM' => 'Jornada Matutina', 'JV' => 'Jornada Vespertina', 'JN' => 'Jornada Nocturna',
-        'JD' => 'Jornada Doble', 'JE' => 'Jornada Extendida'];
+    const JORNADAS = ['EX' => 'Jornada Extendida', 'JM' => 'Jornada Matutina', 'JV' => 'Jornada Vespertina',
+        'JN' => 'Jornada Nocturna', 'JD' => 'Jornada Doble'];
 
     /** @var string[] The sheet's images: key => file area of its setting. */
     const IMAGE_AREAS = ['seal' => 'logo', 'watermark' => 'watermark', 'stamp' => 'stamp', 'url' => 'footerlogo'];
@@ -63,7 +63,7 @@ class config {
      *     department: string, jornada: string, jornadalabel: string}
      */
     public static function school(): array {
-        $jornada = \core_text::strtoupper(self::get('jornada', 'JM'));
+        $jornada = \core_text::strtoupper(self::get('jornada', 'EX'));
         $name = self::get('schoolname', self::SCHOOL_DEFAULTS['schoolname']);
         return [
             'name' => $name,
@@ -139,7 +139,7 @@ class config {
      */
     public static function missing(): array {
         $missing = [];
-        if (self::get('jornada', 'JM') === '') {
+        if (self::get('jornada', 'EX') === '') {
             $missing[] = 'jornada';
         }
         return $missing;

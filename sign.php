@@ -68,12 +68,16 @@ echo ui::header($title);
 
 // The queue: what waits for me first (Working Screens 1).
 if (!$id) {
-    $docs = $DB->get_records_sql("SELECT DISTINCT d.*, t.name AS typename
-                                    FROM {local_documents_doc} d
-                                    JOIN {local_documents_type} t ON t.id = d.typeid
-                                    JOIN {local_documents_approval} a ON a.docid = d.id
-                                   WHERE a.userid = ? AND a.status = 'pending' AND d.status = ?
-                                ORDER BY d.timemodified ASC", [$USER->id, documents::STATUS_PENDING]);
+    $docids = \local_documents\local\units::signable_docids((int)$USER->id);
+    $docs = [];
+    if ($docids) {
+        [$insql, $inparams] = $DB->get_in_or_equal($docids);
+        $docs = $DB->get_records_sql("SELECT d.*, t.name AS typename
+                                        FROM {local_documents_doc} d
+                                        JOIN {local_documents_type} t ON t.id = d.typeid
+                                       WHERE d.id $insql
+                                    ORDER BY d.timemodified ASC", $inparams);
+    }
     if (!$docs) {
         echo $OUTPUT->notification(get_string('nothingtosignnow', 'local_documents'),
             \core\output\notification::NOTIFY_SUCCESS, false);
@@ -98,7 +102,7 @@ if (!$id) {
 
 $bundle = documents::get($id);
 $doc = $bundle['doc'];
-$mine = $DB->get_records('local_documents_approval', ['docid' => $id, 'userid' => $USER->id, 'status' => 'pending']);
+$mine = documents::my_approvals($id, (int)$USER->id);
 if (!$mine) {
     require_capability('local/documents:view', $context);
 }
@@ -116,7 +120,12 @@ echo html_writer::start_div('col-lg-5');
 $rows = [];
 foreach ($DB->get_records('local_documents_approval', ['docid' => $id], 'sortorder, id') as $approval) {
     $unit = $DB->get_record('local_documents_unit', ['id' => $approval->unitid]);
-    $rows[] = [s($unit ? $unit->code . ' — ' . $unit->name : '—'), ui::user((int)$approval->userid),
+    $who = ui::user((int)$approval->userid);
+    if ((int)$approval->onbehalfof > 0) {
+        $who .= html_writer::div(get_string('substitutefor', 'local_documents', ui::user((int)$approval->onbehalfof)),
+            'small text-muted');
+    }
+    $rows[] = [s($unit ? $unit->code . ' — ' . $unit->name : '—'), $who,
         $approval->status === 'approved'
             ? html_writer::span(get_string('approvedon', 'local_documents', userdate((int)$approval->timedecided,
                 get_string('strftimedatetimeshort', 'langconfig'))), 'badge badge-success bg-success')

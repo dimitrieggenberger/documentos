@@ -38,11 +38,12 @@ $url = new moodle_url('/local/documents/units.php');
 
 if ($id >= 0) {
     $editurl = new moodle_url($url, ['id' => $id]);
-    $form = new unit_form($editurl);
-    if ($id > 0) {
-        $unit = $DB->get_record('local_documents_unit', ['id' => $id], '*', MUST_EXIST);
+    $unit = $id > 0 ? $DB->get_record('local_documents_unit', ['id' => $id], '*', MUST_EXIST) : null;
+    $form = new unit_form($editurl, ['substitute' => $unit && (int)$unit->substituteid > 0]);
+    if ($unit) {
         $unit->typeids = units::type_ids($id);
         $unit->userid = (int)$unit->userid ?: '';
+        $unit->substituteid = (int)$unit->substituteid ?: '';
         $form->set_data($unit);
     }
     if ($form->is_cancelled()) {
@@ -51,6 +52,9 @@ if ($id >= 0) {
     if ($data = $form->get_data()) {
         $data->id = $id;
         $data->typeids = $data->typeids ?? [];
+        if (empty($data->substituteid)) {
+            $data->substituteid = $data->substitutefrom = $data->substituteuntil = 0;
+        }
         units::save($data);
         redirect($url, get_string('unitsaved', 'local_documents'), null, \core\output\notification::NOTIFY_SUCCESS);
     }
@@ -80,6 +84,23 @@ foreach (units::all() as $unit) {
     $head = (int)$unit->userid > 0
         ? s(trim($details['signername'] . ', ' . $details['signertitle'], ', '))
         : html_writer::span(get_string('unitwithoutheadshort', 'local_documents'), 'badge badge-danger bg-danger');
+    if ((int)$unit->substituteid > 0) {
+        $now = units::signer_now($unit);
+        $period = [];
+        if ((int)$unit->substitutefrom > 0) {
+            $period[] = get_string('substitutefromshort', 'local_documents', userdate($unit->substitutefrom,
+                get_string('strftimedatefullshort', 'langconfig')));
+        }
+        if ((int)$unit->substituteuntil > 0) {
+            $period[] = get_string('substituteuntilshort', 'local_documents', userdate($unit->substituteuntil,
+                get_string('strftimedatefullshort', 'langconfig')));
+        }
+        $head .= html_writer::div(get_string('substitutedby', 'local_documents', ui::user((int)$unit->substituteid))
+            . ($period ? ' (' . implode(' ', $period) . ')' : '') . ' ' . ((int)$now['onbehalfof'] > 0
+                ? html_writer::span(get_string('substituteactive', 'local_documents'), 'badge badge-warning bg-warning text-dark')
+                : html_writer::span(get_string('substituteinactive', 'local_documents'), 'badge badge-light bg-light text-dark')),
+            'small mt-1');
+    }
     $table->data[] = [
         html_writer::tag('code', s($unit->code)) . ($unit->enabled ? '' : ' ' . html_writer::span(
             get_string('disabled', 'local_documents'), 'badge badge-secondary bg-secondary')),

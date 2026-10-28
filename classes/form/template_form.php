@@ -81,7 +81,7 @@ class template_form extends \moodleform {
 
         $mform->addElement('header', 'signhdr', get_string('requiredsignatures', 'local_documents'));
         $mform->setExpanded('signhdr');
-        $unitoptions = [0 => get_string('nosignature', 'local_documents')];
+        $unitoptions = [0 => get_string('nosignature', 'local_documents'), -1 => get_string('issuingunit', 'local_documents')];
         foreach (units::all() as $unit) {
             $details = units::details($unit);
             $unitoptions[$unit->id] = $unit->code . ' — ' . $unit->name

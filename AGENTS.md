@@ -28,7 +28,7 @@ The shared rulebook for sibling plugins is `docs/shared-plugin-instructions.md` 
 - `verify.php`, `verify_api.php`: public verification (the only pages without login)
 - `classes/local/numbering.php`: number format, correlatives, verification codes
 - `classes/local/documents.php`: draft, submit (to sign or issue), approve, reject, withdraw, issue, revise, recall, attachments, log
-- `classes/local/units.php`: issuing units, the types they issue, the signatures each type requires
+- `classes/local/units.php`: issuing units, the types they issue, the signatures each type requires (unit 0: the issuing unit), who signs for a unit now (head or substitute)
 - `classes/local/notifications.php`: signature requested, issued, sent back
 - `classes/local/templates.php`: template versions, markup, placeholders, diff
 - `classes/local/sources.php`: placeholder values; reads `\local_grades\local\documents_bridge` behind `class_exists`
@@ -55,6 +55,6 @@ It must not own or recalculate: grades, publication, holds, attendance (read fro
 
 ## Simulation Moodle
 
-- `sim sync documentos` (moodle-sim's `plugins.conf` line leaves `wordpress/` out), seed `dev/sim/seed_documents.php`: units DCE (director `rgomez` / `Test123!`), SCE (secretary `ecastillo` / `Sim-Docs-2026!`), SDCE (`portiz` / `Test123!`).
+- `sim sync documentos` (moodle-sim's `plugins.conf` line leaves `wordpress/` out), seed `dev/sim/seed_documents.php`: units DCE (director `rgomez` / `Test123!`), SCE (secretary `ecastillo` / `Sim-Docs-2026!`), SDCE (`portiz` / `Test123!`), GG (`mfuentes` / `Sim-Docs-2026!`), GA (`lbonilla` / `Sim-Docs-2026!`); jornada EX; no substitution (the scenario sets one up and removes it).
 - Scenario: `node dev/sim/scenario_documents.js`.
 - PHPUnit: `sim phpunit --testsuite local_documents_testsuite`.

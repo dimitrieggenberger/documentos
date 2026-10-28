@@ -71,6 +71,27 @@ class unit_form extends \moodleform {
         $mform->addElement('text', 'signertitle', get_string('signertitle', 'local_documents'), ['size' => 40]);
         $mform->setType('signertitle', PARAM_TEXT);
 
+        $mform->addElement('header', 'substitutehdr', get_string('substitution', 'local_documents'));
+        $mform->addElement('static', 'substitutionintro', '', get_string('substitutionintro', 'local_documents'));
+        $mform->addElement('autocomplete', 'substituteid', get_string('substitute', 'local_documents'), [], [
+            'ajax' => 'core_user/form_user_selector',
+            'multiple' => false,
+            'noselectionstring' => get_string('nosubstitute', 'local_documents'),
+            'valuehtmlcallback' => static function($value) {
+                $user = (int)$value > 0 ? \core_user::get_user((int)$value) : null;
+                return $user ? s(fullname($user) . ' · ' . $user->email) : '';
+            },
+        ]);
+        $mform->addHelpButton('substituteid', 'substitute', 'local_documents');
+        $mform->addElement('date_selector', 'substitutefrom', get_string('substitutefrom', 'local_documents'),
+            ['optional' => true]);
+        $mform->addElement('date_selector', 'substituteuntil', get_string('substituteuntil', 'local_documents'),
+            ['optional' => true]);
+        $mform->addHelpButton('substituteuntil', 'substituteuntil', 'local_documents');
+        if (!empty($this->_customdata['substitute'])) {
+            $mform->setExpanded('substitutehdr');
+        }
+
         $mform->addElement('header', 'typeshdr', get_string('unittypes', 'local_documents'));
         $mform->setExpanded('typeshdr');
         $types = [];
@@ -89,7 +110,8 @@ class unit_form extends \moodleform {
     }
 
     /**
-     * A code of capitals and digits, used by no other unit; a head that is a real user.
+     * A code of capitals and digits, used by no other unit; a head that is a real user; a substitute who is
+     * someone else, for a period that ends after it starts.
      *
      * @param array $data
      * @param array $files
@@ -106,6 +128,19 @@ class unit_form extends \moodleform {
         }
         if (empty($data['userid']) || !$DB->record_exists('user', ['id' => (int)$data['userid'], 'deleted' => 0])) {
             $errors['userid'] = get_string('unituserrequired', 'local_documents');
+        }
+        $substitute = (int)($data['substituteid'] ?? 0);
+        if ($substitute > 0) {
+            if ($substitute === (int)($data['userid'] ?? 0)) {
+                $errors['substituteid'] = get_string('substituteishead', 'local_documents');
+            } else if (!$DB->record_exists('user', ['id' => $substitute, 'deleted' => 0])) {
+                $errors['substituteid'] = get_string('unituserrequired', 'local_documents');
+            }
+        }
+        $from = (int)($data['substitutefrom'] ?? 0);
+        $until = (int)($data['substituteuntil'] ?? 0);
+        if ($from > 0 && $until > 0 && $until < $from) {
+            $errors['substituteuntil'] = get_string('substituteuntilbefore', 'local_documents');
         }
         return $errors;
     }

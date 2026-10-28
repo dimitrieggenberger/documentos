@@ -71,10 +71,7 @@ class ui {
                 get_string('newdocument', 'local_documents'));
         }
         global $DB, $USER;
-        $tosign = $DB->count_records_sql("SELECT COUNT(DISTINCT a.docid) FROM {local_documents_approval} a
-                                            JOIN {local_documents_doc} d ON d.id = a.docid
-                                           WHERE a.userid = ? AND a.status = 'pending' AND d.status = ?",
-            [$USER->id, documents::STATUS_PENDING]);
+        $tosign = count(units::signable_docids((int)$USER->id));
         if ($tosign > 0 || units::is_signer((int)$USER->id)) {
             $tabs[] = new \tabobject('sign', new moodle_url('/local/documents/sign.php'),
                 get_string('tosign', 'local_documents') . ($tosign > 0 ? ' (' . $tosign . ')' : ''));
@@ -210,7 +207,8 @@ class ui {
         $signers = '';
         foreach ($composed['signers'] as $signer) {
             $signers .= html_writer::div(html_writer::div(s($signer['name']) ?: '&nbsp;', 'fw-bold')
-                . html_writer::div(s($signer['title']), 'local-documents-sheet-muted')
+                . html_writer::div(s(!empty($signer['substitutefor']) ? get_string_manager()->get_string('pdfsubstitute',
+                    'local_documents', $signer['substitutefor'], 'es') : $signer['title']), 'local-documents-sheet-muted')
                 . html_writer::div(s(trim(($signer['email'] ?? '') . ' ' . ($signer['phone'] ?? ''))), 'local-documents-sheet-muted')
                 . html_writer::div(!empty($signer['approvedon'])
                     ? get_string('approvedon', 'local_documents', userdate((int)$signer['approvedon'],

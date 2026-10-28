@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.0] - 2026-10-28
+
+### Added
+
+- **Substitution** (`docs/documents-plan.md` 9): a unit names who signs in substitution of its head, with an optional first and last day. While it is in effect the substitute receives and gives the unit's signatures (waiting ones move to them, with a message), and the sheet, the record and the verification page print "En sustitución de funciones de" and the head's name and position. The units list shows the substitution and whether it is in effect.
+- **Gerencia General (GG) and Gerencia Académica (GA)** as issuing units (upgrade 2026103000; an administrator links their heads).
+- `{{unit.name}}`: the issuing unit's name.
+
+### Changed
+
+- **Circular and memorándum are issued by every unit** and signed by the head of the issuing unit (new signature slot "the issuing unit" on the template page). A head who starts one starts it on their own unit and issues it alone. The memorándum's "De:" prints the issuing unit (template version 4 where nobody edited it).
+- **Jornada EX** (Jornada Extendida) is the default sixth part of the number; the setting also offers JD (a distancia).
+
 ## [0.3.1] - 2026-10-28
 
 ### Fixed

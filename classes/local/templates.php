@@ -266,7 +266,7 @@ class templates {
      */
     public static function known_placeholders(): array {
         $keys = ['school.name', 'school.officialname', 'school.legalname', 'school.sace', 'school.city', 'school.department', 'school.jornada',
-            'date.long', 'date.words', 'holder.name', 'holder.idnumber', 'g.el', 'g.al', 'g.del', 'g.o',
+            'unit.name', 'date.long', 'date.words', 'holder.name', 'holder.idnumber', 'g.el', 'g.al', 'g.del', 'g.o',
             'student.gradename', 'student.level', 'student.yearlabel', 'student.lastquarter', 'student.birthdate',
             'staff.position', 'staff.startdate', 'staff.years', 'staff.courses',
             'tabla.notas', 'tabla.asistencia', 'signer.name', 'signer.title'];

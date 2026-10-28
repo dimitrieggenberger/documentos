@@ -129,6 +129,7 @@ class sources {
             'school.city' => $school['city'],
             'school.department' => $school['department'],
             'school.jornada' => $school['jornadalabel'],
+            'unit.name' => config::unit((string)$doc->unitcode)['name'],
             'date.long' => spanish::date_long($issuedate),
             'date.words' => spanish::date_words($issuedate),
             'holder.name' => trim((string)$doc->holdername),
@@ -191,15 +192,15 @@ class sources {
     }
 
     /**
-     * Who signs a document: the heads of the units its type requires, with the
+     * Who signs a document: the heads of the units it requires (or their substitutes), with the
      * time each approved it (0 while not yet).
      *
      * Once signatures are asked for, the list is the document's own (its
-     * approvals), so a later change to the type does not move them.
+     * approvals), so a later change to the type or the units does not move them.
      *
      * @param \stdClass $doc
      * @return array<int, array{unitid: int, unitcode: string, unitname: string, userid: int, name: string,
-     *     title: string, email: string, phone: string, approvedon: int}>
+     *     title: string, email: string, phone: string, approvedon: int, substitutefor: string}>
      */
     public static function signers(\stdClass $doc): array {
         global $DB;
@@ -209,35 +210,38 @@ class sources {
         if ($approvals) {
             foreach ($approvals as $approval) {
                 $unit = units::details($DB->get_record('local_documents_unit', ['id' => $approval->unitid]) ?: null);
-                $signers[] = self::signer($unit, (int)$approval->userid,
+                $signers[] = self::signer($unit, (int)$approval->userid, (int)$approval->onbehalfof,
                     $approval->status === 'approved' ? (int)$approval->timedecided : 0);
             }
             return $signers;
         }
-        foreach (units::signers_for_type((int)$doc->typeid) as $unit) {
-            $details = units::details($unit);
-            $signers[] = self::signer($details, $details['userid'], 0);
+        foreach (units::required_units((int)$doc->typeid, (string)$doc->unitcode) as $unit) {
+            $now = units::signer_now($unit);
+            $signers[] = self::signer(units::details($unit), $now['userid'], $now['onbehalfof'], 0);
         }
         return $signers;
     }
 
     /**
-     * One signer as the sheet prints it.
+     * One signer as the sheet prints it: the head, or "en sustitución de funciones de" the head.
      *
      * @param array $unit from units::details()
      * @param int $userid who signs
+     * @param int $onbehalfof the head they substitute, 0 when the head signs
      * @param int $approvedon
      * @return array
      */
-    private static function signer(array $unit, int $userid, int $approvedon): array {
+    private static function signer(array $unit, int $userid, int $onbehalfof, int $approvedon): array {
         $name = $unit['signername'];
-        if ($userid > 0 && $userid !== $unit['userid']) {
+        $substitutefor = '';
+        if ($onbehalfof > 0 || ($userid > 0 && $userid !== $unit['userid'])) {
             $user = \core_user::get_user($userid);
-            $name = $user ? fullname($user) : $name;
+            $name = $user ? fullname($user) : '';
+            $substitutefor = trim($unit['signername'] . ', ' . $unit['signertitle'], ', ');
         }
         return ['unitid' => $unit['id'], 'unitcode' => $unit['code'], 'unitname' => $unit['name'], 'userid' => $userid,
             'name' => $name, 'title' => $unit['signertitle'], 'email' => $unit['email'], 'phone' => $unit['phone'],
-            'approvedon' => $approvedon];
+            'approvedon' => $approvedon, 'substitutefor' => $substitutefor];
     }
 
     /**

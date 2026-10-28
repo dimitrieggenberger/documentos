@@ -232,17 +232,17 @@ class catalog {
             ],
             'circular' => [
                 'series' => 'CIR', 'name' => 'Circular', 'subject' => 'none', 'source' => 'basic', 'validity' => 0,
-                'title' => 'Circular', 'signers' => [], 'allowbodyedit' => 1,
+                'title' => 'Circular', 'signers' => ['ISSUER'], 'allowbodyedit' => 1,
                 'fields' => "destinatario | Dirigida a | text | Padres de familia y personal docente | required\n"
                     . "asunto | Asunto | text | | required\ntexto | Texto | textarea | | required",
                 'body' => "**Asunto:** {{f.asunto}}\n\n{{f.texto}}\n\nAtentamente,",
             ],
             'memorandum' => [
                 'series' => 'MM', 'name' => 'Memorándum', 'subject' => 'none', 'source' => 'basic', 'validity' => 0,
-                'title' => 'Memorándum', 'signers' => [], 'allowbodyedit' => 1,
-                'fields' => "destinatario | Para | text | | required\ncargo | Cargo | text | |\nde | De | text | Dirección | required\n"
+                'title' => 'Memorándum', 'signers' => ['ISSUER'], 'allowbodyedit' => 1,
+                'fields' => "destinatario | Para | text | | required\ncargo | Cargo | text | |\n"
                     . "asunto | Asunto | text | | required\ntexto | Texto | textarea | | required",
-                'body' => "**De:** {{f.de}}\n**Asunto:** {{f.asunto}}\n\n{{f.texto}}",
+                'body' => "**De:** {{unit.name}}\n**Asunto:** {{f.asunto}}\n\n{{f.texto}}",
             ],
             'convenio' => [
                 'series' => 'CONV', 'name' => 'Convenio', 'subject' => 'none', 'source' => 'basic', 'validity' => 0,

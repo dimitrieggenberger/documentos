@@ -116,5 +116,27 @@ function xmldb_local_documents_upgrade($oldversion) {
             . 'emisora; los adjuntos se suben como archivos.');
         upgrade_plugin_savepoint(true, 2026102900, 'local', 'documents');
     }
+    if ($oldversion < 2026103000) {
+        // Substitutes: someone signs in substitution of a unit's head for a while.
+        $table = new xmldb_table('local_documents_unit');
+        foreach (['substituteid', 'substitutefrom', 'substituteuntil'] as $name) {
+            $field = new xmldb_field($name, XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            if (!$dbman->field_exists($table, $field)) {
+                $dbman->add_field($table, $field);
+            }
+        }
+        $table = new xmldb_table('local_documents_approval');
+        $field = new xmldb_field('onbehalfof', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0', 'userid');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        // Circulars and memorandums: any unit issues them, signed by the issuing unit's head;
+        // Gerencia General and Gerencia Académica join the units.
+        \local_documents\local\units::open_letters_to_all();
+        // The memorandum's "De:" is the issuing unit, whichever it is.
+        \local_documents\local\catalog::refresh_untouched('Circular y memorándum firmados por la unidad emisora; '
+            . '«De:» es la unidad emisora.');
+        upgrade_plugin_savepoint(true, 2026103000, 'local', 'documents');
+    }
     return true;
 }

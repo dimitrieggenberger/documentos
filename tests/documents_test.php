@@ -17,6 +17,7 @@
 namespace local_documents;
 
 use local_documents\local\documents;
+use local_documents\local\units;
 use local_documents\local\verify;
 
 /**
@@ -31,7 +32,7 @@ use local_documents\local\verify;
 final class documents_test extends \advanced_testcase {
 
     /**
-     * A school set up, and a letter type to issue (no person needed).
+     * A school set up, and a letter type to issue (no person, no signature needed).
      *
      * @return int the type id
      */
@@ -42,7 +43,10 @@ final class documents_test extends \advanced_testcase {
         foreach (['schoolname' => 'Escuela de Prueba', 'sacecode' => '050100001M01', 'jornada' => 'JM'] as $name => $value) {
             set_config($name, $value, 'local_documents');
         }
-        return (int)$DB->get_field('local_documents_type', 'id', ['shortname' => 'memorandum']);
+        // These tests are about numbers: a memorandum issued without signature.
+        $typeid = (int)$DB->get_field('local_documents_type', 'id', ['shortname' => 'memorandum']);
+        \local_documents\local\units::set_signers($typeid, []);
+        return $typeid;
     }
 
     /**
@@ -225,6 +229,73 @@ final class documents_test extends \advanced_testcase {
         $id = $this->oficio((int)$secretary->id);
         $this->expectException(\moodle_exception::class);
         documents::submit($id, (int)$secretary->id);
+    }
+
+    public function test_every_unit_issues_letters_signed_by_its_own_head(): void {
+        global $DB;
+        $this->resetAfterTest();
+        $this->setAdminUser();
+        $manager = $this->getDataGenerator()->create_user();
+        $secretary = $this->getDataGenerator()->create_user();
+        $this->head('GG', (int)$manager->id);
+        $this->head('SCE', (int)$secretary->id);
+        $typeid = (int)$DB->get_field('local_documents_type', 'id', ['shortname' => 'circular']);
+        $codes = array_column(units::for_type($typeid), 'code');
+        foreach (['DCE', 'SDCE', 'SCE', 'GG', 'GA'] as $code) {
+            $this->assertContains($code, $codes);
+        }
+        foreach (['GG' => $manager, 'SCE' => $secretary] as $code => $head) {
+            $id = documents::create_draft($typeid, 0, (int)$head->id);
+            documents::update_draft($id, ['unitcode' => $code, 'fields' => ['destinatario' => 'Familias',
+                'asunto' => 'Aviso', 'texto' => 'Texto.']], (int)$head->id);
+            $this->assertTrue(documents::submit($id, (int)$head->id), 'the head of the issuing unit issues alone');
+            $doc = documents::get($id)['doc'];
+            $this->assertStringEndsWith("-$code-EX", $doc->number);
+            $signers = documents::data($doc)['frozen']['signers'];
+            $this->assertCount(1, $signers);
+            $this->assertSame($code, $signers[0]['unitcode']);
+        }
+    }
+
+    public function test_a_substitute_signs_in_substitution_of_the_head(): void {
+        $this->setup_school();
+        $secretary = $this->getDataGenerator()->create_user();
+        $director = $this->getDataGenerator()->create_user(['firstname' => 'Rosa', 'lastname' => 'Prueba']);
+        $deputy = $this->getDataGenerator()->create_user(['firstname' => 'Pablo', 'lastname' => 'Prueba']);
+        $this->head('DCE', (int)$director->id);
+        $sink = $this->redirectMessages();
+        $id = $this->oficio((int)$secretary->id);
+        documents::submit($id, (int)$secretary->id);
+
+        // The director goes away: the waiting signature moves to the deputy, who is told.
+        $unit = units::by_code('DCE');
+        $sink->clear();
+        units::save((object)['id' => $unit->id, 'code' => 'DCE', 'name' => $unit->name, 'userid' => $director->id,
+            'signername' => 'Lic. Rosa Prueba', 'signertitle' => 'Directora', 'substituteid' => $deputy->id,
+            'substitutefrom' => time() - DAYSECS, 'substituteuntil' => time() + 7 * DAYSECS, 'enabled' => 1]);
+        $this->assertCount(1, $sink->get_messages());
+        $this->assertSame([$id], units::signable_docids((int)$deputy->id));
+        $this->assertSame([], units::signable_docids((int)$director->id));
+
+        $this->assertTrue(documents::approve($id, (int)$deputy->id));
+        $doc = documents::get($id)['doc'];
+        $this->assertSame(documents::STATUS_ISSUED, $doc->status);
+        $signer = documents::data($doc)['frozen']['signers'][0];
+        $this->assertSame(fullname($deputy), $signer['name']);
+        $this->assertSame('Lic. Rosa Prueba, Directora', $signer['substitutefor']);
+        $this->assertStringContainsString('en sustitución de funciones de Lic. Rosa Prueba',
+            verify::lookup($doc->verifycode)['signers'][0]);
+    }
+
+    public function test_a_substitution_counts_only_in_its_period(): void {
+        $unit = (object)['userid' => 4, 'substituteid' => 5, 'substitutefrom' => mktime(0, 0, 0, 3, 1, 2026),
+            'substituteuntil' => mktime(0, 0, 0, 3, 10, 2026)];
+        $this->assertSame(4, units::signer_now($unit, mktime(12, 0, 0, 2, 28, 2026))['userid']);
+        $this->assertSame(['userid' => 5, 'onbehalfof' => 4], units::signer_now($unit, mktime(12, 0, 0, 3, 1, 2026)));
+        $this->assertSame(5, units::signer_now($unit, mktime(18, 0, 0, 3, 10, 2026))['userid'], 'the last day counts');
+        $this->assertSame(4, units::signer_now($unit, mktime(12, 0, 0, 3, 11, 2026))['userid']);
+        $unit->substituteuntil = 0;
+        $this->assertSame(5, units::signer_now($unit, mktime(12, 0, 0, 12, 1, 2030))['userid'], 'open-ended');
     }
 
     public function test_attachments_are_part_of_the_verifiable_document(): void {

@@ -50,7 +50,7 @@ if ($hassiteconfig) {
     $settings->add(new admin_setting_configtext('local_documents/sacecode', get_string('sacecode', 'local_documents'),
         get_string('sacecode_desc', 'local_documents'), $defaults['sacecode'], PARAM_ALPHANUM));
     $settings->add(new admin_setting_configselect('local_documents/jornada', get_string('jornada', 'local_documents'),
-        get_string('jornada_desc', 'local_documents'), 'JM', array_map(static fn($label) => $label,
+        get_string('jornada_desc', 'local_documents'), 'EX', array_map(static fn($label) => $label,
             \local_documents\local\config::JORNADAS)));
     $settings->add(new admin_setting_configtext('local_documents/city', get_string('city', 'local_documents'), '',
         'San Pedro Sula', PARAM_TEXT));

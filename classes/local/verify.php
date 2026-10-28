@@ -99,7 +99,9 @@ class verify {
             'school' => (string)($frozen['school']['officialname'] ?? $frozen['school']['name'] ?? config::school()['name']),
             'unit' => (string)($frozen['unit']['name'] ?? $frozen['units'][$doc->unitcode] ?? $doc->unitcode),
             'signers' => array_values(array_filter(array_map(static function($s) {
-                $line = trim(($s['name'] ?? '') . ', ' . ($s['title'] ?? ''), ', ');
+                $line = trim(($s['name'] ?? '') . ', ' . (!empty($s['substitutefor'])
+                    ? get_string_manager()->get_string('verifysubstitute', 'local_documents', $s['substitutefor'], 'es')
+                    : ($s['title'] ?? '')), ', ');
                 if ($line !== '' && !empty($s['approvedon'])) {
                     $line .= ' (' . get_string_manager()->get_string('verifyapprovedon', 'local_documents',
                         spanish::date_long((int)$s['approvedon']), 'es') . ')';

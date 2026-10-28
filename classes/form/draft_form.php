@@ -129,7 +129,8 @@ class draft_form extends \moodleform {
         $signers = sources::signers($doc);
         $lines = [];
         foreach ($signers as $signer) {
-            $lines[] = s(trim($signer['name'] . ', ' . $signer['title'], ', ') ?: '—')
+            $lines[] = s(trim($signer['name'] . ', ' . (!empty($signer['substitutefor'])
+                ? get_string('substitutefor', 'local_documents', $signer['substitutefor']) : $signer['title']), ', ') ?: '—')
                 . ' <span class="text-muted">(' . s($signer['unitcode']) . ')</span>';
         }
         $mform->addElement('static', 'signersstatic', get_string('requiredsignatures', 'local_documents'),

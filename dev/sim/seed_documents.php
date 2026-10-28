@@ -51,7 +51,7 @@ foreach ([
     'verifyurl' => '',
     'schoolname' => 'Instituto Bilingüe Valle Verde',
     'sacecode' => '050100099M01',
-    'jornada' => 'JM',
+    'jornada' => 'EX',
     'city' => 'San Pedro Sula',
     'department' => 'Cortés',
     'legalname' => 'Educación Valle Verde S. de R.L.',
@@ -151,16 +151,31 @@ if (!$secretary) {
     $secretary = $DB->get_record('user', ['id' => $id]);
 }
 role_assign($secretaria, $secretary->id, $system->id);
+// The two Gerencias: they issue circulars and memorandums, signed by their own head.
+foreach ([['mfuentes', 'Mario', 'Fuentes'], ['lbonilla', 'Lucía', 'Bonilla']] as [$username, $firstname, $lastname]) {
+    if (!$DB->record_exists('user', ['username' => $username])) {
+        user_create_user((object)['username' => $username, 'auth' => 'manual', 'confirmed' => 1,
+            'mnethostid' => $CFG->mnet_localhost_id, 'password' => 'Sim-Docs-2026!', 'firstname' => $firstname,
+            'lastname' => $lastname, 'email' => $username . '@example.invalid', 'lang' => 'es']);
+    }
+    role_assign($direccion, (int)$DB->get_field('user', 'id', ['username' => $username]), $system->id);
+}
 purge_caches(["muc" => false, "other" => true]);
 
 // The issuing units and who signs for each: Dirección (Rosa Gómez), Secretaría (Elena Castillo),
-// Subdirección (Pablo Ortiz). Every unit may issue every type; the catalogue's signatures stay.
+// Subdirección (Pablo Ortiz), Gerencia General (Mario Fuentes), Gerencia Académica (Lucía Bonilla).
+// The school's units may issue every type, the Gerencias circulars and memorandums; the catalogue's
+// signatures stay. Nobody substitutes anybody: a scenario sets that up itself.
 \local_documents\local\units::install_defaults();
 $heads = [
     'DCE' => ['rgomez', 'Lic. Rosa Gómez', 'Directora', 'direccion@example.invalid', '(+504) 0000-0001'],
     'SCE' => ['ecastillo', 'Prof. Elena Castillo', 'Secretaria', 'secretaria@example.invalid', '(+504) 0000-0003'],
     'SDCE' => ['portiz', 'Lic. Pablo Ortiz', 'Subdirector', 'subdireccion@example.invalid', '(+504) 0000-0002'],
+    'GG' => ['mfuentes', 'Lic. Mario Fuentes', 'Gerente General', 'gerencia@example.invalid', '(+504) 0000-0004'],
+    'GA' => ['lbonilla', 'MSc. Lucía Bonilla', 'Gerente Académica', 'academica@example.invalid', '(+504) 0000-0005'],
 ];
+$letters = array_map('intval', $DB->get_fieldset_select('local_documents_type', 'id',
+    "shortname IN ('circular', 'memorandum')"));
 $alltypes = array_map('intval', $DB->get_fieldset_select('local_documents_type', 'id', '1 = 1'));
 foreach ($heads as $code => [$username, $name, $title, $email, $phone]) {
     $unit = \local_documents\local\units::by_code($code);
@@ -170,8 +185,8 @@ foreach ($heads as $code => [$username, $name, $title, $email, $phone]) {
     }
     \local_documents\local\units::save((object)['id' => $unit->id, 'code' => $code, 'name' => $unit->name,
         'email' => $email, 'phone' => $phone, 'userid' => $head->id, 'signername' => $name, 'signertitle' => $title,
-        'enabled' => 1, 'typeids' => $alltypes]);
+        'enabled' => 1, 'typeids' => in_array($code, ['GG', 'GA'], true) ? $letters : $alltypes]);
 }
 
-cli_writeln('Documents: school, profile fields, units (DCE rgomez, SCE ecastillo, SDCE portiz), '
-    . 'secretary ecastillo / Sim-Docs-2026!.');
+cli_writeln('Documents: school, profile fields, units (DCE rgomez, SCE ecastillo, SDCE portiz, GG mfuentes, '
+    . 'GA lbonilla), secretary and Gerencias / Sim-Docs-2026!.');
