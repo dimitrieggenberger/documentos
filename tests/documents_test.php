@@ -16,6 +16,7 @@
 
 namespace local_documents;
 
+use local_documents\local\companions;
 use local_documents\local\documents;
 use local_documents\local\units;
 use local_documents\local\verify;
@@ -385,6 +386,82 @@ final class documents_test extends \advanced_testcase {
         $this->assertSame(documents::SIGN_HANDWRITTEN, $answer['signaturemode']);
         $this->assertStringContainsString('firma autógrafa', $answer['legal']);
         $this->assertStringNotContainsString('firmado electrónicamente', implode(' ', $answer['signers']));
+    }
+
+    /**
+     * A student, and the traslado's and its companions' templates reduced to plain text (no grades here).
+     *
+     * @return \stdClass the student
+     */
+    private function setup_file(): \stdClass {
+        global $DB;
+        $this->setup_school();
+        $director = $this->getDataGenerator()->create_user();
+        $this->head('DCE', (int)$director->id);
+        $this->setUser($director);
+        foreach (['constancia_traslado', 'constancia_conducta', 'constancia_solvencia'] as $shortname) {
+            $type = $DB->get_record('local_documents_type', ['shortname' => $shortname]);
+            $DB->set_field('local_documents_tplver', 'body', 'Hace constar que **{{holder.name}}** es estudiante.',
+                ['id' => $type->currentversion]);
+            $DB->set_field('local_documents_tplver', 'fields', '', ['id' => $type->currentversion]);
+        }
+        return $this->getDataGenerator()->create_user(['firstname' => 'Ana', 'lastname' => 'Prueba']);
+    }
+
+    public function test_a_traslado_is_a_file_issued_with_its_companions(): void {
+        global $DB, $USER;
+        $student = $this->setup_file();
+        $types = $DB->get_records_menu('local_documents_type', null, '', 'shortname, id');
+        $this->assertSame(['constancia_conducta', 'constancia_solvencia', 'certificacion_estudios'], companions::shortnames(
+            (string)$DB->get_field('local_documents_type', 'companions', ['shortname' => 'constancia_traslado'])));
+
+        // Conduct issued before; the solvencia prepared from the file; a certificación from before the platform.
+        $conduct = documents::create_draft((int)$types['constancia_conducta'], (int)$student->id, (int)$USER->id);
+        documents::submit($conduct, (int)$USER->id);
+        $file = documents::create_draft((int)$types['constancia_traslado'], (int)$student->id, (int)$USER->id);
+        companions::add($file, $conduct, companions::WITH, 0, (int)$USER->id);
+        $solvency = companions::prepare($file, (int)$types['constancia_solvencia'], '', (int)$USER->id);
+        companions::add_external($file, 'Certificación de estudios 2023', '45-2023', companions::FAMILY,
+            mktime(12, 0, 0, 12, 10, 2023), (int)$USER->id);
+
+        $problems = documents::problems(documents::get($file));
+        $this->assertNotEmpty(array_filter($problems, static fn($p) => str_contains($p, 'Constancia de solvencia')),
+            'the file waits for the solvencia');
+        try {
+            documents::submit($file, (int)$USER->id);
+            $this->fail('a file goes out with its companions issued');
+        } catch (\moodle_exception $e) {
+            $this->assertSame('cannotsubmit', $e->errorcode);
+        }
+
+        documents::submit($solvency, (int)$USER->id);
+        $this->assertTrue(documents::submit($file, (int)$USER->id));
+        $doc = documents::get($file)['doc'];
+        $lines = array_column(documents::data($doc)['frozen']['companions'], 'line');
+        $this->assertCount(3, $lines);
+        $this->assertStringContainsString('PDF con firma electrónica, verificable con el código', $lines[0]);
+        $this->assertStringContainsString('original con firma autógrafa', $lines[1], 'the solvencia is signed by hand');
+        $this->assertStringContainsString('entregado a la familia el 10 de diciembre de 2023', $lines[2]);
+        $this->assertStringContainsString('N.º 45-2023', $lines[2]);
+
+        // The verification page lists them, and says when one was recalled since.
+        documents::recall($conduct, 'Error', 'Anulada.', (int)$USER->id);
+        $answer = verify::lookup($doc->verifycode);
+        $this->assertCount(3, $answer['companions']);
+        $this->assertStringContainsString('(anulado después)', $answer['companions'][0]);
+    }
+
+    public function test_only_documents_of_the_same_person_go_in_a_file(): void {
+        global $DB, $USER;
+        $student = $this->setup_file();
+        $other = $this->getDataGenerator()->create_user();
+        $types = $DB->get_records_menu('local_documents_type', null, '', 'shortname, id');
+        $foreign = documents::create_draft((int)$types['constancia_conducta'], (int)$other->id, (int)$USER->id);
+        documents::submit($foreign, (int)$USER->id);
+        $file = documents::create_draft((int)$types['constancia_traslado'], (int)$student->id, (int)$USER->id);
+        $this->assertArrayNotHasKey($foreign, companions::candidates(documents::get($file)['doc']));
+        $this->expectException(\moodle_exception::class);
+        companions::add($file, $foreign, companions::WITH, 0, (int)$USER->id);
     }
 
     public function test_attachments_are_part_of_the_verifiable_document(): void {

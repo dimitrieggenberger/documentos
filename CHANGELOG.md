@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0] - 2026-10-28
+
+### Added
+
+- **Files** (`docs/documents-plan.md` 14), first for transfers: a type names the documents that go with it (the constancia de traslado: conducta, solvencia, certificación de estudios; upgrade 2026103300). On its draft the issuer prepares the missing ones for the same student, adds documents already issued (going with the file, or handed to the family before) and names documents issued on paper before the platform. The file is issued only once every companion is issued; the sheet prints the index "Documentos que acompañan este expediente" with each number and how it travels (verifiable PDF and its code, original signed by hand, handed to the family on a date). The verification pages list them and say when one was recalled or replaced since.
+- WordPress plugin `es-verificacion` 0.5.0: the list of documents that go with it.
+
 ## [0.6.0] - 2026-10-28
 
 ### Added

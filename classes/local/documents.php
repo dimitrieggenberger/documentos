@@ -232,6 +232,7 @@ class documents {
             'school' => config::school(),
             'unit' => config::unit((string)$doc->unitcode),
             'signaturemode' => self::signature_mode($bundle['type']),
+            'companions' => companions::resolve($data),
             'warnings' => $collected['warnings'],
             'missing' => array_values(array_unique($missing)),
             'blocked' => $bundle['type']->source === 'grades' && $collected['record'] !== null
@@ -271,7 +272,8 @@ class documents {
                 $problems[] = get_string('unitwithouthead', 'local_documents', s($signer['unitname'] ?: $signer['unitcode']));
             }
         }
-        return $problems;
+        // A file goes out with its companions issued.
+        return array_merge($problems, companions::problems($bundle['data']));
     }
 
     /**
@@ -506,6 +508,8 @@ class documents {
                 'previousissued' => $previous ? (int)$previous->timeissued : 0,
                 'previousdate' => $previous ? (int)$previous->issuedate : 0,
                 'signaturemode' => $handwritten ? self::SIGN_HANDWRITTEN : self::SIGN_ELECTRONIC,
+                // The documents that go with it, as the index under the signatures prints them.
+                'companions' => $composed['companions'],
                 // The law the electronic signatures were given under, as the footer prints it.
                 'signaturelaw' => $composed['signers'] && !$handwritten ? config::signature_law() : '',
             ];

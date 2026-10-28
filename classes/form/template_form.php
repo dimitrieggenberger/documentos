@@ -95,6 +95,13 @@ class template_form extends \moodleform {
             'electronic' => get_string('signaturemode_electronic', 'local_documents'),
             'handwritten' => get_string('signaturemode_handwritten', 'local_documents')]);
         $mform->addHelpButton('signaturemode', 'signaturemode', 'local_documents');
+        $alltypes = [];
+        foreach ($DB->get_records('local_documents_type', null, 'sortorder, name', 'id, shortname, name') as $other) {
+            $alltypes[$other->shortname] = $other->name;
+        }
+        $mform->addElement('autocomplete', 'companions', get_string('companionsuggested', 'local_documents'), $alltypes,
+            ['multiple' => true, 'noselectionstring' => get_string('companionsnone', 'local_documents')]);
+        $mform->addHelpButton('companions', 'companionsuggested', 'local_documents');
         if (!empty($this->_customdata['issuers'])) {
             $mform->addElement('static', 'issuers', get_string('unitsthatissue', 'local_documents'),
                 $this->_customdata['issuers']);

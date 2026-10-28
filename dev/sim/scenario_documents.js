@@ -209,6 +209,55 @@ const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (
   check(await a.locator('tr:has-text("Certificación de Notas") .badge:has-text("autógrafa"), tr:has-text("Certificación de Notas") .badge:has-text("Handwritten")').count() === 1,
     'templates: certificaciones marked as signed by hand');
 
+  // A transfer file: the director builds Valentina's traslado with its companions.
+  const r = await login('rgomez', 'Test123!');
+  await r.goto(L + 'create.php');
+  await r.click('.local-documents-typecard:has-text("Constancia de Traslado")');
+  await r.fill('#ld-person', 'Ríos Castro');
+  await Promise.all([r.waitForNavigation(), r.press('#ld-person', 'Enter')]);
+  await Promise.all([r.waitForNavigation(), r.click('.local-documents-people li:has-text("Valentina Ríos Castro") button')]);
+  const fileurl = r.url();
+  await r.fill('#id_f_destino', 'Instituto Bilingüe Las Colinas');
+  await Promise.all([r.waitForNavigation(), r.click('#id_save')]);
+  check(await r.locator('.local-documents-companions-card').count() === 1, 'file: the traslado offers its companions');
+  await Promise.all([r.waitForNavigation(), r.click('button:has-text("Preparar: Constancia de Conducta"), button:has-text("Prepare: Constancia de Conducta")')]);
+  const solvvalue = await r.locator('select[name="companion"] option', { hasText: 'CONSSOL' }).first().getAttribute('value');
+  await r.selectOption('select[name="companion"]', solvvalue);
+  await Promise.all([r.waitForNavigation(), r.locator('form:has(select[name="companion"]) button[type="submit"]').click()]);
+  await r.click('.local-documents-companions-card summary');
+  const ext = r.locator('form:has(input[name="title"])');
+  await ext.locator('input[name="title"]').fill('Certificación de estudios 2024');
+  await ext.locator('input[name="number"]').fill('112-2024');
+  await ext.locator('select[name="delivery"]').selectOption('family');
+  await ext.locator('input[name="deliveredon"]').fill('2024-12-10');
+  await Promise.all([r.waitForNavigation(), ext.locator('button[type="submit"]').click()]);
+  const filelist = await r.locator('.local-documents-companions').innerText();
+  check(/Constancia de conducta · por emitir/i.test(filelist) && /original con firma autógrafa/.test(filelist)
+    && /entregado a la familia el 10 de diciembre de 2024/.test(filelist), 'file: three companions listed');
+  check(/Documentos que acompañan/.test(await r.locator('.local-documents-sheet').innerText()), 'file: the index on the preview');
+  await shot(r, 'documents-file-draft');
+  await Promise.all([r.waitForNavigation(), r.click('#id_issue')]);
+  check(/aún no está emitido|is not issued yet/.test(await r.locator('[role="main"]').innerText()), 'file: waits for the conducta');
+  await r.goto(fileurl);
+  await Promise.all([r.waitForNavigation(), r.locator('.local-documents-companions a:has-text("Abrir el borrador"), .local-documents-companions a:has-text("Open the draft")').first().click()]);
+  await Promise.all([r.waitForNavigation(), r.click('#id_issue')]);
+  await Promise.all([r.waitForNavigation(), r.click('[role="main"] form button.btn-primary')]);
+  check(/CONSCOND-\d{3}/.test(await r.locator('.local-documents-record .local-documents-number').innerText()), 'file: the conducta issued');
+  await r.goto(fileurl);
+  await Promise.all([r.waitForNavigation(), r.click('#id_issue')]);
+  await Promise.all([r.waitForNavigation(), r.click('[role="main"] form button.btn-primary')]);
+  const filenumber = (await r.locator('.local-documents-record .local-documents-number').innerText()).trim();
+  check(/^CONSTL-\d{3}-/.test(filenumber), 'file: the traslado issued: ' + filenumber);
+  await shot(r, 'documents-file-record');
+  const fid = new URL(r.url()).searchParams.get('id');
+  const [fpdf] = await Promise.all([r.waitForEvent('download'), r.locator(`a[href$="download.php?id=${fid}"]`).first().click()]);
+  fs.copyFileSync(await fpdf.path(), path.join(out, 'documents-traslado-file.pdf'));
+  const fcode = (await r.locator('.local-documents-record code').first().innerText()).trim();
+  await pub.goto(L + 'verify.php?c=' + fcode);
+  const fverify = await pub.locator('.local-documents-verify-result').innerText();
+  check(/CONSCOND/.test(fverify) && /CONSSOL/.test(fverify) && /112-2024/.test(fverify), 'public: the file lists its companions');
+  await shot(pub, 'documents-verify-file');
+
   // The director is away: Pablo Ortiz signs in substitution of her.
   await a.goto(L + 'units.php');
   const dceid = new URL(await a.locator('tr:has-text("DCE") a:has-text("Edit"), tr:has-text("DCE") a:has-text("Editar")')

@@ -153,6 +153,8 @@ class catalog {
             'constancia_traslado' => [
                 'series' => 'CONSTL', 'name' => 'Constancia de Traslado', 'subject' => 'student', 'source' => 'basic',
                 'validity' => 90, 'title' => 'Constancia de traslado', 'signers' => ['DCE'], 'allowbodyedit' => 0,
+                // The file of a transfer: conduct, solvency and the certificaciones of the years studied here.
+                'companions' => ['constancia_conducta', 'constancia_solvencia', 'certificacion_estudios'],
                 'fields' => "destino | Centro educativo de destino | text | | required",
                 'body' => "$intro\n\nQue {{g.el}} estudiante **{{holder.name}}**, con número de identidad "
                     . "{{holder.idnumber}}, cursó en esta institución el **{{student.gradename}}** durante el año lectivo "
@@ -290,6 +292,7 @@ class catalog {
                 'shortname' => $shortname, 'name' => $type['name'], 'seriesid' => $seriesids[$type['series']],
                 'subject' => $type['subject'], 'source' => $type['source'], 'unitcode' => 'DCE',
                 'validitydays' => (int)$type['validity'], 'signaturemode' => $type['signature'] ?? 'electronic',
+                'companions' => implode(',', $type['companions'] ?? []),
                 'currentversion' => 0, 'enabled' => 1, 'sortorder' => $sort,
                 'timecreated' => $now, 'timemodified' => $now,
             ]);

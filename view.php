@@ -188,6 +188,12 @@ if ($composed['signers']) {
     echo html_writer::tag('h3', get_string('signatures', 'local_documents'), ['class' => 'h5 mt-4']);
     echo html_writer::table($st);
 }
+if (!empty($composed['companions'])) {
+    echo html_writer::tag('h3', get_string('companions', 'local_documents'), ['class' => 'h5 mt-4']);
+    echo html_writer::alist(array_map(static fn($item) => s($item['line']) . ($item['docid'] > 0 ? ' '
+        . html_writer::link(new moodle_url('/local/documents/view.php', ['id' => $item['docid']]),
+            get_string('open', 'local_documents'), ['class' => 'small']) : ''), $composed['companions']), [], 'ol');
+}
 if ($composed['attachments']) {
     echo html_writer::tag('h3', get_string('attachments', 'local_documents'), ['class' => 'h5 mt-4']);
     echo html_writer::alist(array_map(static fn($a) => html_writer::link(new moodle_url('/local/documents/download.php',

@@ -28,6 +28,7 @@ The shared rulebook for sibling plugins is `docs/shared-plugin-instructions.md` 
 - `verify.php`, `verify_api.php`: public verification (the only pages without login)
 - `classes/local/numbering.php`: number format, correlatives, verification codes
 - `classes/local/documents.php`: draft, submit (to sign or issue), approve, reject, withdraw, issue, revise, recall, attachments, log
+- `classes/local/companions.php`: files: the documents that go with another one (a traslado), prepared, added or named on paper, and the index the sheet prints
 - `classes/local/units.php`: issuing units, the types they issue, the signatures each type requires (unit 0: the issuing unit), who signs for a unit now (head or substitute)
 - `classes/local/notifications.php`: signature requested, issued, sent back
 - `classes/local/templates.php`: template versions, markup, placeholders, diff

@@ -132,6 +132,8 @@ class pdf {
         self::signatures($pdf, $composed['signers'], !empty($pdf->sheet['images']['stamp']) && $final && !$handwritten
             ? $pdf->sheet['images']['stamp'] : '', $handwritten);
 
+        self::companions($pdf, $composed['companions'] ?? []);
+
         self::attachments($pdf, $bundle['doc'], $composed['attachments'] ?? [], $strings, $final);
 
         return $pdf->Output('', 'S');
@@ -272,6 +274,40 @@ class pdf {
                 $pdf->Annotation($left + $width - 10, $y + 1, 8, 10, $attachment['name'],
                     ['Subtype' => 'FileAttachment', 'Name' => 'Paperclip', 'FS' => $path]);
             }
+        }
+        $pdf->SetTextColor(...letter_pdf::TEXT);
+    }
+
+    /**
+     * The documents that go with this one, as an index under the signatures (docs/documents-plan.md 14).
+     *
+     * @param letter_pdf $pdf
+     * @param array[] $companions from companions::resolve()
+     * @return void
+     */
+    private static function companions(letter_pdf $pdf, array $companions): void {
+        if (!$companions) {
+            return;
+        }
+        $left = letter_pdf::MARGIN_X;
+        $width = letter_pdf::text_width();
+        $needed = 10 + 12 * count($companions);
+        $limit = letter_pdf::PAGE_H - letter_pdf::MARGIN_Y - letter_pdf::FOOTER_H;
+        if ($pdf->GetY() + letter_pdf::BEFORE_ATTACHMENT + $needed <= $limit) {
+            $pdf->SetY($pdf->GetY() + letter_pdf::BEFORE_ATTACHMENT);
+        } else if ($pdf->GetY() + 12 + $needed <= $limit) {
+            $pdf->SetY($pdf->GetY() + 12);
+        } else {
+            $pdf->AddPage();
+        }
+        $pdf->SetTextColor(...letter_pdf::TEXT);
+        $pdf->SetFont(letter_pdf::FONT, 'B', 8);
+        $pdf->MultiCell($width, 10, get_string_manager()->get_string('pdfcompanions', 'local_documents', null, 'es'), 0, 'L',
+            false, 1, $left);
+        $pdf->SetFont(letter_pdf::FONT, '', 7);
+        foreach (array_values($companions) as $i => $item) {
+            $pdf->SetY($pdf->GetY() + 2);
+            $pdf->MultiCell($width, 9, ($i + 1) . '. ' . $item['line'], 0, 'L', false, 1, $left);
         }
         $pdf->SetTextColor(...letter_pdf::TEXT);
     }

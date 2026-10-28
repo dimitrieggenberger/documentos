@@ -25,6 +25,7 @@
 require_once(__DIR__ . '/../../config.php');
 
 use local_documents\form\template_form;
+use local_documents\local\companions;
 use local_documents\local\documents;
 use local_documents\local\templates;
 use local_documents\local\ui;
@@ -53,6 +54,7 @@ if ($type) {
         'id' => $type->id, 'name' => $type->name, 'seriesid' => $type->seriesid, 'subject' => $type->subject,
         'source' => $type->source, 'unitcode' => $type->unitcode, 'validitydays' => $type->validitydays,
         'signaturemode' => documents::signature_mode($type),
+        'companions' => companions::shortnames((string)$type->companions),
         'enabled' => $type->enabled, 'title' => $current->title ?? '', 'body' => $current->body ?? '',
         'fields' => $current->fields ?? '', 'allowbodyedit' => $current->allowbodyedit ?? 1,
     ] + array_combine(['signer1', 'signer2', 'signer3'], array_pad(array_slice(array_map(
@@ -79,6 +81,7 @@ if ($data = $form->get_data()) {
             'subject' => $data->subject, 'source' => $data->source, 'unitcode' => $data->unitcode,
             'validitydays' => max(0, (int)$data->validitydays), 'currentversion' => 0, 'enabled' => (int)$data->enabled,
             'signaturemode' => $data->signaturemode === 'handwritten' ? 'handwritten' : 'electronic',
+            'companions' => implode(',', array_map('strval', (array)($data->companions ?? []))),
             'sortorder' => 1000, 'timecreated' => $now, 'timemodified' => $now,
         ]);
         // A new type may be issued by its default unit; the units page widens that.
@@ -91,6 +94,7 @@ if ($data = $form->get_data()) {
             'id' => $typeid, 'name' => trim($data->name), 'seriesid' => (int)$data->seriesid, 'source' => $data->source,
             'unitcode' => $data->unitcode, 'validitydays' => max(0, (int)$data->validitydays),
             'signaturemode' => $data->signaturemode === 'handwritten' ? 'handwritten' : 'electronic',
+            'companions' => implode(',', array_map('strval', (array)($data->companions ?? []))),
             'enabled' => (int)$data->enabled, 'timemodified' => $now,
         ]);
     }

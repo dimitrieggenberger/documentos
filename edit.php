@@ -25,6 +25,7 @@
 require_once(__DIR__ . '/../../config.php');
 
 use local_documents\form\draft_form;
+use local_documents\local\companions;
 use local_documents\local\documents;
 use local_documents\local\sources;
 use local_documents\local\templates;
@@ -49,6 +50,34 @@ if ($action === 'delete' && confirm_sesskey()) {
     documents::delete_draft($id);
     redirect(new moodle_url('/local/documents/index.php'), get_string('draftdeleted', 'local_documents'), null,
         \core\output\notification::NOTIFY_SUCCESS);
+}
+// The file: documents that go with this one (docs/documents-plan.md 14).
+if (in_array($action, ['companionadd', 'companionexternal', 'companionprepare', 'companionremove'], true)
+        && confirm_sesskey()) {
+    $deliveredon = 0;
+    if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', optional_param('deliveredon', '', PARAM_RAW_TRIMMED), $m)) {
+        $deliveredon = make_timestamp((int)$m[1], (int)$m[2], (int)$m[3], 12);
+    }
+    $delivery = optional_param('delivery', companions::WITH, PARAM_ALPHA);
+    try {
+        if ($action === 'companionadd') {
+            companions::add($id, required_param('companion', PARAM_INT), $delivery, $deliveredon, (int)$USER->id);
+        } else if ($action === 'companionexternal') {
+            companions::add_external($id, required_param('title', PARAM_TEXT), optional_param('number', '', PARAM_TEXT),
+                $delivery, $deliveredon, (int)$USER->id);
+        } else if ($action === 'companionprepare') {
+            $newid = companions::prepare($id, required_param('typeid', PARAM_INT), optional_param('year', '', PARAM_TEXT),
+                (int)$USER->id);
+            redirect($url, get_string('companionprepared', 'local_documents', html_writer::link(
+                new moodle_url('/local/documents/edit.php', ['id' => $newid]), get_string('opendraft', 'local_documents'))),
+                null, \core\output\notification::NOTIFY_SUCCESS);
+        } else {
+            companions::remove($id, required_param('index', PARAM_INT), (int)$USER->id);
+        }
+    } catch (moodle_exception $e) {
+        redirect($url, $e->getMessage(), null, \core\output\notification::NOTIFY_ERROR);
+    }
+    redirect($url);
 }
 if ($action === 'reset' && confirm_sesskey()) {
     documents::reset_body($id, (int)$USER->id);
@@ -156,6 +185,9 @@ $delete = new single_button(new moodle_url($url, ['action' => 'delete']), get_st
 $delete->add_confirm_action(get_string('deletedraftconfirm', 'local_documents'));
 echo $OUTPUT->render($delete);
 echo html_writer::end_div();
+if (companions::enabled($bundle)) {
+    echo ui::companions_card($bundle, $composed['companions'], $url);
+}
 echo html_writer::end_div();
 
 // The sheet as it stands, so wording changes are seen before the PDF.

@@ -167,5 +167,21 @@ function xmldb_local_documents_upgrade($oldversion) {
         }
         upgrade_plugin_savepoint(true, 2026103200, 'local', 'documents');
     }
+
+    if ($oldversion < 2026103300) {
+        // Files: the documents that go with another one, such as a traslado (docs/documents-plan.md 14).
+        $table = new xmldb_table('local_documents_type');
+        $field = new xmldb_field('companions', XMLDB_TYPE_CHAR, '255', null, null, null, null, 'signaturemode');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        foreach (\local_documents\local\catalog::types() as $shortname => $type) {
+            if (!empty($type['companions'])) {
+                $DB->set_field_select('local_documents_type', 'companions', implode(',', $type['companions']),
+                    "shortname = ? AND (companions IS NULL OR companions = '')", [$shortname]);
+            }
+        }
+        upgrade_plugin_savepoint(true, 2026103300, 'local', 'documents');
+    }
     return true;
 }

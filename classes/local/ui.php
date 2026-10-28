@@ -217,13 +217,129 @@ class ui {
                     : get_string('signaturepending', 'local_documents')), 'local-documents-sheet-approval'),
                 'local-documents-sheet-signer');
         }
-        $attachments = '';
+        $companions = '';
+        if (!empty($composed['companions'])) {
+            $companions = html_writer::div(html_writer::div(get_string_manager()->get_string('pdfcompanions',
+                'local_documents', null, 'es'), 'fw-bold') . html_writer::alist(array_map(static fn($item) => s($item['line']),
+                $composed['companions']), [], 'ol'), 'local-documents-sheet-attachments');
+        }
+        $attachments = $companions;
         if (!empty($composed['attachments'])) {
             $items = array_map(static fn($a) => s($a['name']) . ' · ' . display_size($a['size']), $composed['attachments']);
-            $attachments = html_writer::div(html_writer::div(get_string('attachments', 'local_documents'), 'fw-bold')
+            $attachments .= html_writer::div(html_writer::div(get_string('attachments', 'local_documents'), 'fw-bold')
                 . html_writer::alist($items, [], 'ol'), 'local-documents-sheet-attachments');
         }
         return html_writer::div($sheet . ($signers !== '' ? html_writer::div($signers, 'local-documents-sheet-signers') : '')
             . $attachments, 'local-documents-sheet');
+    }
+
+    /**
+     * The file on a draft: the documents that go with it, and how to add one (docs/documents-plan.md 14).
+     *
+     * @param array $bundle from documents::get()
+     * @param array[] $items from companions::resolve()
+     * @param moodle_url $url the draft's page
+     * @return string
+     */
+    public static function companions_card(array $bundle, array $items, moodle_url $url): string {
+        global $DB;
+        $doc = $bundle['doc'];
+        $form = static function(string $action, string $inner, string $class = 'mt-2') use ($url): string {
+            return html_writer::tag('form', html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey',
+                'value' => sesskey()]) . html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'action',
+                'value' => $action]) . $inner, ['method' => 'post', 'action' => $url->out(false), 'class' => $class]);
+        };
+        $delivery = static function(string $prefix) : string {
+            return html_writer::div(html_writer::select([companions::WITH => get_string('companionwith', 'local_documents'),
+                companions::FAMILY => get_string('companionfamily', 'local_documents')], 'delivery', companions::WITH, false,
+                ['class' => 'form-select form-select-sm', 'id' => $prefix . '-delivery', 'aria-label' =>
+                get_string('companiondelivery', 'local_documents')]), 'col-sm-6')
+                . html_writer::div(html_writer::empty_tag('input', ['type' => 'date', 'name' => 'deliveredon',
+                'class' => 'form-control form-control-sm', 'id' => $prefix . '-date', 'title' =>
+                get_string('companiondeliveredon', 'local_documents'), 'aria-label' =>
+                get_string('companiondeliveredon', 'local_documents')]), 'col-sm-6');
+        };
+
+        $html = html_writer::tag('h3', get_string('companions', 'local_documents'), ['class' => 'h5']);
+        $html .= html_writer::tag('p', get_string('companionsintro', 'local_documents'), ['class' => 'small text-muted']);
+
+        // What is in the file now.
+        if ($items) {
+            $rows = '';
+            foreach (array_values($items) as $i => $item) {
+                $badge = $item['kind'] === 'external' || $item['ready'] ? '' : ' ' . html_writer::span(
+                    get_string($item['status'] === 'missing' ? 'companiongone' : 'status_' . $item['status'], 'local_documents'),
+                    'badge badge-warning bg-warning text-dark');
+                $open = $item['docid'] > 0 ? ' ' . html_writer::link(new moodle_url($item['ready'] ? '/local/documents/view.php'
+                    : '/local/documents/edit.php', ['id' => $item['docid']]), get_string($item['ready'] ? 'open'
+                    : 'opendraft', 'local_documents'), ['class' => 'small']) : '';
+                $remove = $form('companionremove', html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'index',
+                    'value' => $i]) . html_writer::tag('button', get_string('remove'), ['type' => 'submit',
+                    'class' => 'btn btn-link btn-sm p-0']), 'd-inline ms-2');
+                $rows .= html_writer::tag('li', s($item['line']) . $badge . $open . $remove, ['class' => 'mb-1']);
+            }
+            $html .= html_writer::tag('ol', $rows, ['class' => 'local-documents-companions small']);
+        } else {
+            $html .= html_writer::tag('p', get_string('companionsempty', 'local_documents'), ['class' => 'small']);
+        }
+
+        // Prepare what is missing: a draft for the same person, put in the file.
+        $linkedtypes = [];
+        foreach ($items as $item) {
+            if ($item['docid'] > 0) {
+                $linkedtypes[] = (int)$DB->get_field('local_documents_doc', 'typeid', ['id' => $item['docid']]);
+            }
+        }
+        $prepare = '';
+        foreach (companions::suggested($bundle['type']) as $type) {
+            $years = $type->source === 'grades' ? sources::school_years((int)$doc->userid) : [];
+            if (!$years && in_array((int)$type->id, $linkedtypes, true)) {
+                continue;
+            }
+            $inner = html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'typeid', 'value' => $type->id]);
+            if ($years) {
+                $inner .= html_writer::select($years, 'year', array_key_first($years), false,
+                    ['class' => 'form-select form-select-sm d-inline-block w-auto me-1', 'aria-label' =>
+                    get_string('schoolyear', 'local_documents')]);
+            }
+            $inner .= html_writer::tag('button', get_string('companionprepare', 'local_documents', s($type->name)),
+                ['type' => 'submit', 'class' => 'btn btn-sm btn-outline-primary']);
+            $prepare .= $form('companionprepare', $inner);
+        }
+        if ($prepare !== '') {
+            $html .= html_writer::tag('h4', get_string('companionpreparehdr', 'local_documents'), ['class' => 'h6 mt-3'])
+                . $prepare;
+        }
+
+        // An issued document of the same person.
+        $candidates = companions::candidates($doc);
+        if ($candidates) {
+            $options = [];
+            foreach ($candidates as $candidate) {
+                $options[$candidate->id] = $candidate->typename . ' — ' . numbering::display((string)$candidate->number);
+            }
+            $html .= html_writer::tag('h4', get_string('companionaddhdr', 'local_documents'), ['class' => 'h6 mt-3'])
+                . $form('companionadd', html_writer::div(html_writer::div(html_writer::select($options, 'companion', '', false,
+                    ['class' => 'form-select form-select-sm', 'aria-label' => get_string('companionaddhdr',
+                    'local_documents')]), 'col-12') . $delivery('ld-add'), 'row g-2')
+                    . html_writer::tag('button', get_string('add'), ['type' => 'submit',
+                    'class' => 'btn btn-sm btn-outline-secondary mt-2']));
+        }
+
+        // A document issued on paper before the platform.
+        $html .= html_writer::tag('details', html_writer::tag('summary', get_string('companionexternalhdr', 'local_documents'),
+            ['class' => 'h6 mt-3'])
+            . $form('companionexternal', html_writer::div(
+                html_writer::div(html_writer::empty_tag('input', ['type' => 'text', 'name' => 'title', 'required' => 'required',
+                    'class' => 'form-control form-control-sm', 'placeholder' => get_string('companionexternaltitle',
+                    'local_documents'), 'aria-label' => get_string('companionexternaltitle', 'local_documents')]), 'col-sm-8')
+                . html_writer::div(html_writer::empty_tag('input', ['type' => 'text', 'name' => 'number',
+                    'class' => 'form-control form-control-sm', 'placeholder' => get_string('number', 'local_documents'),
+                    'aria-label' => get_string('number', 'local_documents')]), 'col-sm-4')
+                . $delivery('ld-ext'), 'row g-2')
+                . html_writer::tag('button', get_string('add'), ['type' => 'submit',
+                    'class' => 'btn btn-sm btn-outline-secondary mt-2'])));
+
+        return html_writer::div($html, 'local-documents-card local-documents-companions-card mt-4 p-3');
     }
 }

@@ -111,6 +111,7 @@ class verify {
             'attachments' => array_map(static fn($a) => ['name' => (string)$a['name'], 'size' => (int)$a['size'],
                 'sha256' => (string)$a['sha256']], array_values($frozen['attachments'] ?? [])),
             'sha256' => (string)$doc->contenthash,
+            'companions' => self::companions($frozen['companions'] ?? []),
             'signaturemode' => (string)($frozen['signaturemode'] ?? documents::SIGN_ELECTRONIC),
             // Signed by hand: only the printed original with its signature and seal is valid.
             // Electronically signed: the law, and what the platform keeps of each signature.
@@ -133,6 +134,32 @@ class verify {
         }
         documents::log((int)$doc->id, 'verified', 0, \core_text::substr($client, 0, 100));
         return $result;
+    }
+
+    /**
+     * The documents that go with this one, as its index prints them, each with what has become of it since:
+     * recalled, or replaced by a corrected version.
+     *
+     * @param array[] $companions frozen with the document
+     * @return string[]
+     */
+    private static function companions(array $companions): array {
+        global $DB;
+        $sm = get_string_manager();
+        $lines = [];
+        foreach ($companions as $item) {
+            $line = (string)($item['line'] ?? '');
+            if (!empty($item['docid']) && ($doc = $DB->get_record('local_documents_doc', ['id' => (int)$item['docid']],
+                    'id, status'))) {
+                if ($doc->status === documents::STATUS_RECALLED) {
+                    $line .= ' (' . $sm->get_string('verifycompanionrecalled', 'local_documents', null, 'es') . ')';
+                } else if ($doc->status === documents::STATUS_SUPERSEDED) {
+                    $line .= ' (' . $sm->get_string('verifycompanionsuperseded', 'local_documents', null, 'es') . ')';
+                }
+            }
+            $lines[] = $line;
+        }
+        return $lines;
     }
 
     /**

@@ -91,6 +91,10 @@ if ($result !== null) {
                 $dl .= html_writer::tag('dt', s($label)) . html_writer::tag('dd', s($value));
             }
         }
+        if (!empty($result['companions'])) {
+            $dl .= html_writer::tag('dt', get_string('companions', 'local_documents'))
+                . html_writer::tag('dd', html_writer::alist(array_map('s', $result['companions']), [], 'ol'));
+        }
         if (!empty($result['attachments'])) {
             $items = array_map(static fn($a) => s($a['name']) . ' · ' . display_size($a['size'])
                 . html_writer::div('SHA-256 ' . html_writer::tag('code', s($a['sha256'])), 'small text-break'),

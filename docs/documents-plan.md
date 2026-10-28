@@ -335,3 +335,38 @@ the platform's evidence.
 - The full TRD as an importable catalogue.
 - Students and staff requesting a document from their own page.
 - A Certificación de estudios over several school years.
+
+## 14. Files: documents that go with another one
+
+Decided 2026-10-28, for transfers. A **traslado** is several documents: the
+constancia de traslado, the constancia de conducta, the constancia de
+solvencia and the certificaciones de estudios of the years studied here
+(unless they were handed to the family before). The requirements are the
+school's reading; to confirm with the Dirección Departamental.
+
+- A document type can be a **file**: it names the types suggested to go with
+  it (`companions` on the type, "Documents that go with it" on the template
+  page). The constancia de traslado suggests conducta, solvencia and
+  certificación de estudios.
+- On the file's draft (`ui::companions_card()`), the issuer:
+  - **prepares** what is missing: a draft of a suggested type for the same
+    person, put in the file (a certificación for a chosen school year; one per
+    year);
+  - **adds** a document of the same person already issued, going with the file
+    or handed to the family before (with the date);
+  - **names** a document issued on paper before the platform (title, number,
+    delivery).
+- The list lives in the document's data (`companions`), so it is part of
+  what is signed (the fingerprint, section 12) and is frozen at issue. A
+  file is not issued while a companion is a draft, waits for signatures, was
+  recalled or was deleted (`companions::problems()`).
+- The sheet prints, under the signatures, "Documentos que acompañan este
+  expediente", one line each: title and number, and how it travels:
+  "PDF con firma electrónica, verificable con el código …" (electronic),
+  "original con firma autógrafa" (signed by hand: it goes on paper, never as
+  a PDF inside the file), "entregado a la familia el …", or "emitido en papel
+  antes de la plataforma". Nothing is embedded: each companion stands on its
+  own and is verified by its own code.
+- The verification pages list the companions as the sheet prints them, and
+  add when one was recalled or replaced since.
+
