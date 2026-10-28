@@ -182,6 +182,33 @@ const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (
   const circular = (await g.locator('.local-documents-record .local-documents-number').innerText()).trim();
   check(/^CIR-\d{3}-050100099M01-\d{4}-GG-EX$/.test(circular), 'circular: numbered for GG: ' + circular);
 
+  // Signed by hand: the secretary issues a Constancia de Solvencia to print; nobody signs on the platform.
+  const h = await login('ecastillo', 'Sim-Docs-2026!');
+  await h.goto(L + 'create.php');
+  await h.click('.local-documents-typecard:has-text("Constancia de Solvencia")');
+  await h.fill('#ld-person', 'Ríos Castro');
+  await Promise.all([h.waitForNavigation(), h.press('#ld-person', 'Enter')]);
+  await Promise.all([h.waitForNavigation(), h.click('.local-documents-people li:has-text("Valentina Ríos Castro") button')]);
+  check(/Firma autógrafa|Signed by hand/.test(await h.locator('#fitem_id_signersstatic').innerText()), 'handwritten: the draft says so');
+  check(/^(Emitir|Issue)/.test(await h.locator('#id_issue').inputValue()), 'handwritten: issued by the secretary, not sent to sign');
+  await Promise.all([h.waitForNavigation(), h.click('#id_issue')]);
+  check(/firmar de puño y letra|signed by hand/.test(await h.locator('[role="main"]').innerText()), 'handwritten: the confirmation says to print and sign');
+  await Promise.all([h.waitForNavigation(), h.click('[role="main"] form button.btn-primary')]);
+  const solv = (await h.locator('.local-documents-record .local-documents-number').innerText()).trim();
+  check(/^CONSSOL-\d{3}-/.test(solv), 'handwritten: numbered at once: ' + solv);
+  check(/Firma autógrafa en el original|Signed by hand on the original/.test(await h.locator('body').innerText()),
+    'handwritten: the record says where it is signed');
+  const hid = new URL(h.url()).searchParams.get('id');
+  const [hpdf] = await Promise.all([h.waitForEvent('download'), h.locator(`a[href$="download.php?id=${hid}"]`).first().click()]);
+  fs.copyFileSync(await hpdf.path(), path.join(out, 'documents-solvencia-handwritten.pdf'));
+  const hcode = (await h.locator('.local-documents-record code').first().innerText()).trim();
+  await pub.goto(L + 'verify.php?c=' + hcode);
+  check(/firma autógrafa/.test(await pub.locator('.local-documents-verify-result').innerText()), 'public: only the signed original is valid');
+  await shot(pub, 'documents-verify-handwritten');
+  await a.goto(L + 'templates.php');
+  check(await a.locator('tr:has-text("Certificación de Notas") .badge:has-text("autógrafa"), tr:has-text("Certificación de Notas") .badge:has-text("Handwritten")').count() === 1,
+    'templates: certificaciones marked as signed by hand');
+
   // The director is away: Pablo Ortiz signs in substitution of her.
   await a.goto(L + 'units.php');
   const dceid = new URL(await a.locator('tr:has-text("DCE") a:has-text("Edit"), tr:has-text("DCE") a:has-text("Editar")')

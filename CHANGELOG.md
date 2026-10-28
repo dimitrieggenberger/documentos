@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0] - 2026-10-28
+
+### Added
+
+- **Signature mode per document type** (`docs/documents-plan.md` 12): electronic (signed on the platform) or handwritten (*firma autógrafa*), on the template page. Handwritten types are issued at once to be printed: lines to sign on, no printed stamp, and the footer "Documento de firma autógrafa: solo es válido con la firma y el sello originales."; the verification pages say only the signed original is valid. The templates list marks them.
+- Upgrade 2026103200: the certificaciones (estudios, notas, conducta, trabajo docente) and the constancia de solvencia are signed by hand.
+
 ## [0.5.0] - 2026-10-28
 
 ### Added

@@ -42,6 +42,11 @@ class documents {
     /** @var string */
     const STATUS_RECALLED = 'recalled';
 
+    /** @var string Signed on the platform: an electronic signature (docs/documents-plan.md 12). */
+    const SIGN_ELECTRONIC = 'electronic';
+    /** @var string Valid only with the handwritten signature and the seal on the printed original. */
+    const SIGN_HANDWRITTEN = 'handwritten';
+
     /** @var string The file area of issued PDFs. */
     const FILEAREA = 'issued';
     /** @var string The file area of a document's attachments (itemid = the document version). */
@@ -226,6 +231,7 @@ class documents {
             'attachments' => self::attachments($doc),
             'school' => config::school(),
             'unit' => config::unit((string)$doc->unitcode),
+            'signaturemode' => self::signature_mode($bundle['type']),
             'warnings' => $collected['warnings'],
             'missing' => array_values(array_unique($missing)),
             'blocked' => $bundle['type']->source === 'grades' && $collected['record'] !== null
@@ -285,6 +291,11 @@ class documents {
         self::require_draft($doc);
         if ($problems = self::problems($bundle)) {
             throw new \moodle_exception('cannotsubmit', 'local_documents', '', implode(' ', $problems));
+        }
+        if (self::signature_mode($bundle['type']) === self::SIGN_HANDWRITTEN) {
+            // Signed by hand on the printed original: nobody signs on the platform, the issuer issues it to print.
+            self::issue($id, $userid);
+            return true;
         }
         $now = time();
         $fingerprint = self::fingerprint($doc);
@@ -438,7 +449,8 @@ class documents {
         $required = count(units::required_units((int)$doc->typeid, (string)$doc->unitcode));
         $given = $DB->count_records('local_documents_approval', ['docid' => $id, 'status' => 'approved']);
         $open = $DB->count_records('local_documents_approval', ['docid' => $id, 'status' => 'pending']);
-        if ($open > 0 || ($required > 0 && $given === 0)) {
+        $handwritten = self::signature_mode($bundle['type']) === self::SIGN_HANDWRITTEN;
+        if ($open > 0 || ($required > 0 && $given === 0 && !$handwritten)) {
             throw new \moodle_exception('signaturesmissing', 'local_documents');
         }
         // What is issued is exactly what was signed.
@@ -493,8 +505,9 @@ class documents {
                 'units' => config::units(),
                 'previousissued' => $previous ? (int)$previous->timeissued : 0,
                 'previousdate' => $previous ? (int)$previous->issuedate : 0,
+                'signaturemode' => $handwritten ? self::SIGN_HANDWRITTEN : self::SIGN_ELECTRONIC,
                 // The law the electronic signatures were given under, as the footer prints it.
-                'signaturelaw' => $composed['signers'] ? config::signature_law() : '',
+                'signaturelaw' => $composed['signers'] && !$handwritten ? config::signature_law() : '',
             ];
             $doc->status = self::STATUS_ISSUED;
             $doc->number = $number;
@@ -637,6 +650,16 @@ class documents {
         $files = $fs->get_area_files(\context_system::instance()->id, 'local_documents', self::FILEAREA, $doc->id,
             'id', false);
         return $files ? reset($files) : null;
+    }
+
+    /**
+     * How a type's documents are signed: on the platform, or by hand on the printed original.
+     *
+     * @param \stdClass $type
+     * @return string SIGN_ELECTRONIC or SIGN_HANDWRITTEN
+     */
+    public static function signature_mode(\stdClass $type): string {
+        return ($type->signaturemode ?? '') === self::SIGN_HANDWRITTEN ? self::SIGN_HANDWRITTEN : self::SIGN_ELECTRONIC;
     }
 
     /**

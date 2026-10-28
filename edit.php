@@ -64,8 +64,11 @@ if ($action === 'issue' && optional_param('confirm', 0, PARAM_BOOL) && confirm_s
         : get_string('senttosign', 'local_documents'), null, \core\output\notification::NOTIFY_SUCCESS);
 }
 
-// Whether the person at the keyboard can issue it alone: nobody else has to sign.
-$othersigners = array_filter(sources::signers($doc), static fn($signer) => (int)$signer['userid'] !== (int)$USER->id);
+// Whether the person at the keyboard can issue it alone: nobody else has to sign on the platform
+// (a document signed by hand is issued to be printed, and signed on paper).
+$handwritten = documents::signature_mode($bundle['type']) === documents::SIGN_HANDWRITTEN;
+$othersigners = $handwritten ? [] : array_filter(sources::signers($doc),
+    static fn($signer) => (int)$signer['userid'] !== (int)$USER->id);
 $years = $bundle['type']->subject === 'student' ? sources::school_years((int)$doc->userid) : [];
 $form = new draft_form($url, ['bundle' => $bundle, 'years' => $years, 'signsalone' => !$othersigners]);
 $defaults = draft_form::defaults($bundle);
@@ -115,6 +118,11 @@ if ($action === 'issue') {
         } else {
             $message .= html_writer::tag('p', get_string((int)$doc->docversion > 1 ? 'issueconfirmrevision'
                 : 'issueconfirmnumber', 'local_documents', (int)$doc->docversion), ['class' => 'text-muted']);
+            if ($handwritten) {
+                $message .= html_writer::tag('p', get_string('issueconfirmhandwritten', 'local_documents',
+                    s(implode('; ', array_map(static fn($signer) => trim($signer['name'] . ', ' . $signer['title'], ', '),
+                    sources::signers($doc))) ?: '—')), ['class' => 'alert alert-info']);
+            }
         }
         echo $OUTPUT->confirm($message, new moodle_url($url, ['action' => 'issue', 'confirm' => 1, 'sesskey' => sesskey()]),
             $url);

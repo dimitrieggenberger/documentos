@@ -55,6 +55,10 @@ foreach ($types as $t) {
     if (!$t->enabled) {
         $name .= ' ' . html_writer::span(get_string('disabled', 'local_documents'), 'badge badge-secondary bg-secondary');
     }
+    if ($t->signaturemode === 'handwritten') {
+        $name .= ' ' . html_writer::span(get_string('signaturemode_handwrittenshort', 'local_documents'),
+            'badge badge-light bg-light text-dark border');
+    }
     $table->data[] = [
         $name,
         html_writer::tag('code', s($t->seriescode)) . ' · ' . s($t->unitcode),

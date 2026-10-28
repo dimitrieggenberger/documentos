@@ -22,6 +22,7 @@ global $CFG;
 require_once($CFG->libdir . '/formslib.php');
 
 use local_documents\local\config;
+use local_documents\local\documents;
 use local_documents\local\sources;
 use local_documents\local\templates;
 use local_documents\local\units;
@@ -133,8 +134,11 @@ class draft_form extends \moodleform {
                 ? get_string('substitutefor', 'local_documents', $signer['substitutefor']) : $signer['title']), ', ') ?: '—')
                 . ' <span class="text-muted">(' . s($signer['unitcode']) . ')</span>';
         }
+        $handwritten = documents::signature_mode($bundle['type']) === documents::SIGN_HANDWRITTEN;
         $mform->addElement('static', 'signersstatic', get_string('requiredsignatures', 'local_documents'),
-            $lines ? implode('<br>', $lines) : get_string('nosignaturesneeded', 'local_documents'));
+            ($lines ? implode('<br>', $lines) : get_string('nosignaturesneeded', 'local_documents'))
+            . ($lines && $handwritten ? \html_writer::div(get_string('signhandwrittennote', 'local_documents'),
+                'small text-muted mt-1') : ''));
         $mform->addHelpButton('signersstatic', 'requiredsignatures', 'local_documents');
         $mform->addElement('date_selector', 'issuedate', get_string('issuedate', 'local_documents'));
         $mform->addHelpButton('issuedate', 'issuedate', 'local_documents');

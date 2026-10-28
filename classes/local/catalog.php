@@ -144,7 +144,7 @@ class catalog {
             ],
             'constancia_solvencia' => [
                 'series' => 'CONSSOL', 'name' => 'Constancia de Solvencia', 'subject' => 'student', 'source' => 'basic',
-                'validity' => 30, 'title' => 'Constancia de solvencia', 'signers' => ['DCE'], 'allowbodyedit' => 0,
+                'validity' => 30, 'title' => 'Constancia de solvencia', 'signers' => ['DCE'], 'signature' => 'handwritten', 'allowbodyedit' => 0,
                 'fields' => "hasta | Solvente hasta el mes de | text | |\n$purpose",
                 'body' => "$intro\n\nQue {{g.el}} estudiante **{{holder.name}}**, con número de identidad "
                     . "{{holder.idnumber}}, del **{{student.gradename}}**, se encuentra solvente con sus obligaciones "
@@ -169,7 +169,7 @@ class catalog {
             ],
             'certificacion_estudios' => [
                 'series' => 'CERES', 'name' => 'Certificación de Estudios', 'subject' => 'student', 'source' => 'grades',
-                'validity' => 0, 'title' => 'Certificación de estudios', 'signers' => ['SCE', 'DCE'], 'allowbodyedit' => 0, 'fields' => '',
+                'validity' => 0, 'title' => 'Certificación de estudios', 'signers' => ['SCE', 'DCE'], 'signature' => 'handwritten', 'allowbodyedit' => 0, 'fields' => '',
                 'body' => "$certintro\n\nQue {{g.el}} estudiante **{{holder.name}}**, con número de identidad "
                     . "{{holder.idnumber}}, cursó el **{{student.gradename}}** en esta institución durante el año lectivo "
                     . "{{student.yearlabel}}, en la {{school.jornada}}, con las calificaciones que se detallan:"
@@ -177,7 +177,7 @@ class catalog {
             ],
             'certificacion_notas' => [
                 'series' => 'CERNOT', 'name' => 'Certificación de Notas', 'subject' => 'student', 'source' => 'grades',
-                'validity' => 0, 'title' => 'Certificación de notas', 'signers' => ['SCE', 'DCE'], 'allowbodyedit' => 0, 'fields' => '',
+                'validity' => 0, 'title' => 'Certificación de notas', 'signers' => ['SCE', 'DCE'], 'signature' => 'handwritten', 'allowbodyedit' => 0, 'fields' => '',
                 'body' => "$certintro\n\nQue en los registros de calificaciones de esta institución consta que "
                     . "{{g.el}} estudiante **{{holder.name}}**, con número de identidad {{holder.idnumber}}, del "
                     . "**{{student.gradename}}**, año lectivo {{student.yearlabel}}, obtuvo las siguientes "
@@ -185,7 +185,7 @@ class catalog {
             ],
             'certificacion_conducta' => [
                 'series' => 'CERCOND', 'name' => 'Certificación de Conducta', 'subject' => 'student', 'source' => 'basic',
-                'validity' => 0, 'title' => 'Certificación de conducta', 'signers' => ['SCE', 'DCE'], 'allowbodyedit' => 0,
+                'validity' => 0, 'title' => 'Certificación de conducta', 'signers' => ['SCE', 'DCE'], 'signature' => 'handwritten', 'allowbodyedit' => 0,
                 'fields' => "conducta | Conducta | select | Muy buena | Excelente;Muy buena;Buena;Satisfactoria",
                 'body' => "$certintro\n\nQue según los registros de esta institución, {{g.el}} estudiante "
                     . "**{{holder.name}}**, con número de identidad {{holder.idnumber}}, del **{{student.gradename}}**, "
@@ -210,7 +210,7 @@ class catalog {
             ],
             'certificacion_trabajo_docente' => [
                 'series' => 'CERTRAD', 'name' => 'Certificación de Trabajo Docente', 'subject' => 'staff',
-                'source' => 'basic', 'validity' => 0, 'title' => 'Certificación de trabajo docente', 'signers' => ['DCE'], 'allowbodyedit' => 0,
+                'source' => 'basic', 'validity' => 0, 'title' => 'Certificación de trabajo docente', 'signers' => ['DCE'], 'signature' => 'handwritten', 'allowbodyedit' => 0,
                 'fields' => '',
                 'body' => "La Dirección del **{{school.officialname}}**, código SACE {{school.sace}}, de la ciudad de "
                     . "{{school.city}}, departamento de {{school.department}}:\n\n= **CERTIFICA:**\n\nQue {{g.el}} "
@@ -289,7 +289,8 @@ class catalog {
             $typeid = (int)$DB->insert_record('local_documents_type', (object)[
                 'shortname' => $shortname, 'name' => $type['name'], 'seriesid' => $seriesids[$type['series']],
                 'subject' => $type['subject'], 'source' => $type['source'], 'unitcode' => 'DCE',
-                'validitydays' => (int)$type['validity'], 'currentversion' => 0, 'enabled' => 1, 'sortorder' => $sort,
+                'validitydays' => (int)$type['validity'], 'signaturemode' => $type['signature'] ?? 'electronic',
+                'currentversion' => 0, 'enabled' => 1, 'sortorder' => $sort,
                 'timecreated' => $now, 'timemodified' => $now,
             ]);
             templates::save_version($typeid, [

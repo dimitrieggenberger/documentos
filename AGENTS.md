@@ -48,7 +48,7 @@ It must not own or recalculate: grades, publication, holds, attendance (read fro
 
 - Same security, Moodle, UI, build, testing and git rules as `local_grades` (see the shared rulebook). Strings in en, es, de; the sheet's own wording (`pdf*` strings) stays Spanish in all three.
 - An issued document never changes: corrections are new versions, mistakes are recalls. Never delete an issued document.
-- Every required signature is an approval by the unit's head on the platform; never issue a document that still waits for one.
+- Every required signature of an electronically signed type is an approval by the unit's head on the platform; never issue such a document while it still waits for one. A type signed by hand (`signaturemode` handwritten: certificaciones, solvencia) is issued to be printed and is valid only with the original signature and seal; never print the stamp image or cite the electronic-signature law on it.
 - Text is the plugin's markup (bold, italic, centred, list, placeholders), never free HTML: see docs/documents-plan.md 11.
 - The public pages show only what the sheet prints. Never add grades or the PDF to them.
 - Bump `version.php` before committing plugin changes.

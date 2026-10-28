@@ -178,7 +178,8 @@ if ($composed['signers']) {
                 : $signer['title']), ', ')), !empty($signer['approvedon'])
             ? html_writer::span(get_string('approvedon', 'local_documents', userdate((int)$signer['approvedon'],
                 get_string('strftimedatetimeshort', 'langconfig'))), 'badge badge-success bg-success')
-            : html_writer::span(get_string('signaturepending', 'local_documents'), 'badge badge-warning bg-warning text-dark'),
+            : html_writer::span(get_string(($composed['signaturemode'] ?? '') === documents::SIGN_HANDWRITTEN
+                ? 'signhandwritten' : 'signaturepending', 'local_documents'), 'badge badge-warning bg-warning text-dark'),
             $proof && (string)$proof->contenthash !== '' ? html_writer::div(get_string('evidenceip', 'local_documents',
                 s((string)$proof->ipaddress ?: '—')), 'small') . html_writer::div(get_string('evidencehash', 'local_documents',
                 html_writer::tag('code', s(substr((string)$proof->contenthash, 0, 16)) . '…',

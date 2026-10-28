@@ -210,10 +210,11 @@ class ui {
                 . html_writer::div(s(!empty($signer['substitutefor']) ? get_string_manager()->get_string('pdfsubstitute',
                     'local_documents', $signer['substitutefor'], 'es') : $signer['title']), 'local-documents-sheet-muted')
                 . html_writer::div(s(trim(($signer['email'] ?? '') . ' ' . ($signer['phone'] ?? ''))), 'local-documents-sheet-muted')
-                . html_writer::div(!empty($signer['approvedon'])
+                . html_writer::div(($composed['signaturemode'] ?? '') === documents::SIGN_HANDWRITTEN
+                    ? get_string('signhandwritten', 'local_documents') : (!empty($signer['approvedon'])
                     ? get_string('approvedon', 'local_documents', userdate((int)$signer['approvedon'],
                         get_string('strftimedatetimeshort', 'langconfig')))
-                    : get_string('signaturepending', 'local_documents'), 'local-documents-sheet-approval'),
+                    : get_string('signaturepending', 'local_documents')), 'local-documents-sheet-approval'),
                 'local-documents-sheet-signer');
         }
         $attachments = '';

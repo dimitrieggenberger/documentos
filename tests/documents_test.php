@@ -351,6 +351,42 @@ final class documents_test extends \advanced_testcase {
         $this->assertSame(5, units::signer_now($unit, mktime(12, 0, 0, 12, 1, 2030))['userid'], 'open-ended');
     }
 
+    public function test_certificaciones_and_solvencias_are_signed_by_hand(): void {
+        global $DB;
+        $this->resetAfterTest();
+        $modes = $DB->get_records_menu('local_documents_type', null, '', 'shortname, signaturemode');
+        foreach (['certificacion_estudios', 'certificacion_notas', 'certificacion_conducta', 'certificacion_trabajo_docente',
+                'constancia_solvencia'] as $shortname) {
+            $this->assertSame(documents::SIGN_HANDWRITTEN, $modes[$shortname], $shortname);
+        }
+        foreach (['constancia_estudio', 'constancia_matricula', 'constancia_traslado', 'oficio', 'circular'] as $shortname) {
+            $this->assertSame(documents::SIGN_ELECTRONIC, $modes[$shortname], $shortname);
+        }
+    }
+
+    public function test_a_handwritten_document_is_issued_to_print_and_says_so(): void {
+        global $DB;
+        $this->setup_school();
+        $secretary = $this->getDataGenerator()->create_user();
+        $director = $this->getDataGenerator()->create_user();
+        $this->head('DCE', (int)$director->id);
+        $DB->set_field('local_documents_type', 'signaturemode', documents::SIGN_HANDWRITTEN, ['shortname' => 'oficio']);
+        $sink = $this->redirectMessages();
+        $id = $this->oficio((int)$secretary->id);
+        $this->assertTrue(documents::submit($id, (int)$secretary->id), 'issued at once, to be signed on paper');
+        $this->assertCount(0, $sink->get_messages(), 'nobody is asked to sign on the platform');
+        $this->assertSame(0, $DB->count_records('local_documents_approval', ['docid' => $id]));
+        $doc = documents::get($id)['doc'];
+        $frozen = documents::data($doc)['frozen'];
+        $this->assertSame(documents::SIGN_HANDWRITTEN, $frozen['signaturemode']);
+        $this->assertSame('', $frozen['signaturelaw'], 'no electronic signature to cite the law for');
+        $this->assertSame(0, (int)$frozen['signers'][0]['approvedon']);
+        $answer = verify::lookup($doc->verifycode);
+        $this->assertSame(documents::SIGN_HANDWRITTEN, $answer['signaturemode']);
+        $this->assertStringContainsString('firma autógrafa', $answer['legal']);
+        $this->assertStringNotContainsString('firmado electrónicamente', implode(' ', $answer['signers']));
+    }
+
     public function test_attachments_are_part_of_the_verifiable_document(): void {
         global $USER;
         $typeid = $this->setup_school();

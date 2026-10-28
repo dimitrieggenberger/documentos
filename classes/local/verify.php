@@ -111,10 +111,14 @@ class verify {
             'attachments' => array_map(static fn($a) => ['name' => (string)$a['name'], 'size' => (int)$a['size'],
                 'sha256' => (string)$a['sha256']], array_values($frozen['attachments'] ?? [])),
             'sha256' => (string)$doc->contenthash,
+            'signaturemode' => (string)($frozen['signaturemode'] ?? documents::SIGN_ELECTRONIC),
+            // Signed by hand: only the printed original with its signature and seal is valid.
             // Electronically signed: the law, and what the platform keeps of each signature.
-            'legal' => !empty($frozen['signers']) && !empty($frozen['signaturelaw'])
+            'legal' => ($frozen['signaturemode'] ?? '') === documents::SIGN_HANDWRITTEN
+                ? get_string_manager()->get_string('verifyhandwritten', 'local_documents', null, 'es')
+                : (!empty($frozen['signers']) && !empty($frozen['signaturelaw'])
                 ? trim($frozen['signaturelaw'] . ' ' . get_string_manager()->get_string('verifyevidence', 'local_documents',
-                    null, 'es')) : '',
+                    null, 'es')) : ''),
         ];
         if ($status === 'recalled') {
             $result['recalled'] = spanish::date_long((int)$doc->timerecalled);

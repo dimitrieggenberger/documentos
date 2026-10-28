@@ -36,6 +36,7 @@
         <FIELD NAME="source" TYPE="char" LENGTH="30" NOTNULL="true" DEFAULT="basic" SEQUENCE="false" COMMENT="basic or grades: what is read to prepopulate"/>
         <FIELD NAME="unitcode" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="DCE" SEQUENCE="false" COMMENT="Issuing authority or unit (5th part of the number)"/>
         <FIELD NAME="validitydays" TYPE="int" LENGTH="5" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="0 = no expiry"/>
+        <FIELD NAME="signaturemode" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="electronic" SEQUENCE="false" COMMENT="electronic (signed on the platform) or handwritten (valid only with the original signature and seal)"/>
         <FIELD NAME="currentversion" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="local_documents_tplver id in use"/>
         <FIELD NAME="enabled" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1" SEQUENCE="false"/>
         <FIELD NAME="sortorder" TYPE="int" LENGTH="5" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>

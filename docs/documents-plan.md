@@ -298,6 +298,22 @@ the website's plugin) repeat the sentence and say what the platform keeps of
 each signature. A document issued without signatures cites nothing. The
 document never claims an *advanced* signature.
 
+**Signed by hand** (decided 2026-10-28). Each document type says how it is
+signed (`signaturemode`, on the template page): *electrónica* (above) or
+*autógrafa*, the opposite of electronic: signed by the signer's own hand on
+paper. Autógrafa by default: the certificaciones (estudios, notas, conducta,
+trabajo docente) and the constancia de solvencia; everything else
+(constancias de matrícula and estudio, transcripts, oficios, circulars...)
+is electronic. A document signed by hand still gets its number, code, QR and
+fingerprint on the platform, but nobody signs it there: the issuer issues it
+to print, and the sheet has a line to sign on under each signer's name, no
+printed stamp (the original carries the real seal), and in the footer
+"Documento de firma autógrafa: solo es válido con la firma y el sello
+originales." The verification page says that only the printed original with
+its signature and seal is valid, and that the check confirms it was issued
+and with what content. A PDF of it shared on its own is therefore, by its
+own words, not valid.
+
 **To confirm with a lawyer.**
 
 - Whether a *certificación* (studies, grades) counts as an instrumento

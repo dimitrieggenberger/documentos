@@ -150,5 +150,22 @@ function xmldb_local_documents_upgrade($oldversion) {
         }
         upgrade_plugin_savepoint(true, 2026103100, 'local', 'documents');
     }
+
+    if ($oldversion < 2026103200) {
+        // Signature mode per type: certificaciones and the constancia de solvencia are valid only with the
+        // handwritten signature and the seal on the printed original (decided 2026-10-28).
+        $table = new xmldb_table('local_documents_type');
+        $field = new xmldb_field('signaturemode', XMLDB_TYPE_CHAR, '20', null, XMLDB_NOTNULL, null, 'electronic',
+            'validitydays');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        foreach (\local_documents\local\catalog::types() as $shortname => $type) {
+            if (($type['signature'] ?? 'electronic') === 'handwritten') {
+                $DB->set_field('local_documents_type', 'signaturemode', 'handwritten', ['shortname' => $shortname]);
+            }
+        }
+        upgrade_plugin_savepoint(true, 2026103200, 'local', 'documents');
+    }
     return true;
 }

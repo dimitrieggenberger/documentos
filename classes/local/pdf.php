@@ -127,8 +127,10 @@ class pdf {
         $pdf->SetFont(letter_pdf::FONT, '', 8);
         $pdf->writeHTML($composed['bodyhtml'], true, false, true, false, '');
 
-        self::signatures($pdf, $composed['signers'], !empty($pdf->sheet['images']['stamp']) && $final
-            ? $pdf->sheet['images']['stamp'] : '');
+        // Signed by hand: lines to sign on, and no printed stamp, so the original carries the real seal.
+        $handwritten = ($composed['signaturemode'] ?? '') === documents::SIGN_HANDWRITTEN;
+        self::signatures($pdf, $composed['signers'], !empty($pdf->sheet['images']['stamp']) && $final && !$handwritten
+            ? $pdf->sheet['images']['stamp'] : '', $handwritten);
 
         self::attachments($pdf, $bundle['doc'], $composed['attachments'] ?? [], $strings, $final);
 
@@ -142,9 +144,10 @@ class pdf {
      * @param letter_pdf $pdf
      * @param array $signers
      * @param string $stamp path of the stamp image, '' for none
+     * @param bool $handwritten a line to sign on by hand instead of the electronic signature
      * @return void
      */
-    private static function signatures(letter_pdf $pdf, array $signers, string $stamp): void {
+    private static function signatures(letter_pdf $pdf, array $signers, string $stamp, bool $handwritten = false): void {
         $signers = array_values($signers);
         if (!$signers) {
             // A document issued without signatures: no block, no stamp.
@@ -166,15 +169,19 @@ class pdf {
             $approved = (int)($signer['approvedon'] ?? 0);
             $pdf->SetTextColor(...letter_pdf::MUTED);
             $pdf->SetFont(letter_pdf::FONT, 'I', 6);
-            if ($approved > 0) {
+            if ($handwritten) {
+                $pdf->SetDrawColor(...letter_pdf::MUTED);
+                $pdf->SetLineWidth(0.5);
+                $pdf->Line($x, $top + letter_pdf::SIGN_H - 3, $x + letter_pdf::SIGNER_W - 20, $top + letter_pdf::SIGN_H - 3);
+            } else if ($approved > 0) {
                 $pdf->SetXY($x, $top + letter_pdf::SIGN_H - 16.5);
                 $pdf->Cell(letter_pdf::SIGNER_W, 7.5, $sm->get_string('pdfsigned', 'local_documents', null, 'es'), 0, 0, 'L',
                     false, '', 1);
             }
             $pdf->SetXY($x, $top + letter_pdf::SIGN_H - 9);
-            $pdf->Cell(letter_pdf::SIGNER_W, 7.5, $approved > 0
+            $pdf->Cell(letter_pdf::SIGNER_W, 7.5, $handwritten ? '' : ($approved > 0
                 ? $sm->get_string('pdfapproved', 'local_documents', spanish::date_time($approved), 'es')
-                : $sm->get_string('pdfsignpending', 'local_documents', null, 'es'), 0, 0, 'L', false, '', 1);
+                : $sm->get_string('pdfsignpending', 'local_documents', null, 'es')), 0, 0, 'L', false, '', 1);
             $y = $top + letter_pdf::SIGN_H;
             $pdf->SetXY($x, $y);
             $pdf->SetTextColor(...letter_pdf::TEXT);
@@ -289,7 +296,9 @@ class pdf {
                 $lines[] = $sm->get_string('pdfvaliduntil', 'local_documents', spanish::date_long((int)$doc->validuntil),
                     'es');
             }
-            if (!empty($composed['signaturelaw'])) {
+            if (($composed['signaturemode'] ?? '') === documents::SIGN_HANDWRITTEN) {
+                $lines[] = $sm->get_string('pdfhandwritten', 'local_documents', null, 'es');
+            } else if (!empty($composed['signaturelaw'])) {
                 $lines[] = (string)$composed['signaturelaw'];
             }
         } else {

@@ -91,6 +91,10 @@ class template_form extends \moodleform {
             $mform->addElement('select', 'signer' . $i, get_string('signer', 'local_documents', $i), $unitoptions);
         }
         $mform->addHelpButton('signer1', 'requiredsignatures', 'local_documents');
+        $mform->addElement('select', 'signaturemode', get_string('signaturemode', 'local_documents'), [
+            'electronic' => get_string('signaturemode_electronic', 'local_documents'),
+            'handwritten' => get_string('signaturemode_handwritten', 'local_documents')]);
+        $mform->addHelpButton('signaturemode', 'signaturemode', 'local_documents');
         if (!empty($this->_customdata['issuers'])) {
             $mform->addElement('static', 'issuers', get_string('unitsthatissue', 'local_documents'),
                 $this->_customdata['issuers']);
