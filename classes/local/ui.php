@@ -230,7 +230,44 @@ class ui {
                 . html_writer::alist($items, [], 'ol'), 'local-documents-sheet-attachments');
         }
         return html_writer::div($sheet . ($signers !== '' ? html_writer::div($signers, 'local-documents-sheet-signers') : '')
-            . $attachments, 'local-documents-sheet');
+            . $attachments . self::colilla_preview($bundle, $composed), 'local-documents-sheet');
+    }
+
+    /**
+     * The consent slip as the sheet prints it, for the first student (docs/documents-plan.md 15).
+     *
+     * @param array $bundle
+     * @param array $composed
+     * @return string
+     */
+    private static function colilla_preview(array $bundle, array $composed): string {
+        $consent = (string)($composed['consenthtml'] ?? '');
+        if ($consent === '') {
+            return '';
+        }
+        $sm = get_string_manager();
+        $str = static fn(string $key, $a = null) => $sm->get_string($key, 'local_documents', $a, 'es');
+        $slip = slips::list((int)$bundle['doc']->id)[0] ?? null;
+        $student = $slip ? html_writer::tag('b', s($slip->holdername))
+            . (trim((string)$slip->holderidnumber) !== '' ? ', ' . s($str('pdfslipid', $slip->holderidnumber)) : '')
+            . (trim((string)$slip->gradename) !== '' ? ', ' . s($str('pdfslipgrade', $slip->gradename)) : '')
+            : s($str('pdfslipnostudent'));
+        $values = $composed['values'];
+        $to = trim((string)($values['f.devolver_a'] ?? ''));
+        $by = trim((string)($values['f.devolver_antes'] ?? ''));
+        $box = '<span class="local-documents-sheet-box" aria-hidden="true"></span> ';
+        return html_writer::div(
+            html_writer::div(s($str('pdfslipcut')), 'local-documents-sheet-cut')
+            . html_writer::div(s($str('pdfsliptitle')), 'fw-bold')
+            . ($to !== '' ? html_writer::div(s($str($by !== '' ? 'pdfslipreturnby' : 'pdfslipreturn',
+                (object)['to' => $to, 'by' => $by])), 'local-documents-sheet-muted fst-italic') : '')
+            . html_writer::tag('p', s($str('pdfslipadult')) . ' ' . $student . ':', ['class' => 'mt-2 mb-1'])
+            . html_writer::div($box . s($str('pdfslipyes')) . ' &nbsp; ' . $box . s($str('pdfslipno')), 'fw-bold')
+            . html_writer::div($consent, 'mt-1')
+            . html_writer::div(implode(' ', array_map(static fn($key) => s($str($key)) . ' ________',
+                ['pdfslipname', 'pdfslipidnumber', 'pdfslipphone', 'pdfslipdate', 'pdfslipsignature'])),
+                'local-documents-sheet-muted mt-2'),
+            'local-documents-sheet-colilla');
     }
 
     /**
@@ -341,5 +378,75 @@ class ui {
                     'class' => 'btn btn-sm btn-outline-secondary mt-2'])));
 
         return html_writer::div($html, 'local-documents-card local-documents-companions-card mt-4 p-3');
+    }
+
+    /**
+     * The students an authorisation goes to, on its draft: one consent slip each (docs/documents-plan.md 15).
+     *
+     * @param int $docid
+     * @param moodle_url $url the draft's page
+     * @param string $find a student searched for
+     * @return string
+     */
+    public static function recipients_card(int $docid, moodle_url $url, string $find): string {
+        global $DB;
+        $post = static function(string $action, string $inner, string $class = 'mt-2') use ($url): string {
+            return html_writer::tag('form', html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey',
+                'value' => sesskey()]) . html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'action',
+                'value' => $action]) . $inner, ['method' => 'post', 'action' => $url->out(false), 'class' => $class]);
+        };
+        $list = slips::list($docid);
+        $html = html_writer::tag('h3', get_string('recipients', 'local_documents') . ' ' . html_writer::span(count($list),
+            'badge badge-secondary bg-secondary'), ['class' => 'h5']);
+        $html .= html_writer::tag('p', get_string('recipientsintro', 'local_documents'), ['class' => 'small text-muted']);
+
+        // A course or one of its groups, all at once.
+        $html .= $post('slipadd', html_writer::div(html_writer::div(html_writer::select(slips::course_options(), 'pick', '',
+            ['' => get_string('recipientspick', 'local_documents')], ['class' => 'form-select form-select-sm',
+            'required' => 'required', 'aria-label' => get_string('recipientspick', 'local_documents')]), 'flex-grow-1')
+            . html_writer::tag('button', get_string('add'), ['type' => 'submit', 'class' => 'btn btn-sm btn-outline-primary']),
+            'd-flex gap-2'));
+
+        // One student, by name.
+        $html .= html_writer::tag('form', html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'id',
+            'value' => $docid]) . html_writer::div(html_writer::empty_tag('input', ['type' => 'search', 'name' => 'findstudent',
+            'value' => $find, 'class' => 'form-control form-control-sm', 'placeholder' => get_string('findstudent',
+            'local_documents'), 'aria-label' => get_string('findstudent', 'local_documents')])
+            . html_writer::tag('button', get_string('search'), ['type' => 'submit', 'class' => 'btn btn-sm btn-secondary']),
+            'd-flex gap-2'), ['method' => 'get', 'action' => $url->out_omit_querystring(), 'class' => 'mt-2', 'role' => 'search']);
+        if (\core_text::strlen($find) >= 2) {
+            $fullname = $DB->sql_fullname('u.firstname', 'u.lastname');
+            $users = $DB->get_records_sql("SELECT u.id, u.firstname, u.lastname, u.firstnamephonetic, u.lastnamephonetic,
+                                                  u.middlename, u.alternatename
+                                             FROM {user} u
+                                            WHERE u.deleted = 0 AND u.confirmed = 1 AND u.id > 2
+                                              AND " . $DB->sql_like($fullname, ':q', false, false) . '
+                                         ORDER BY u.lastname, u.firstname', ['q' => '%' . $DB->sql_like_escape($find) . '%'],
+                0, 15);
+            $items = '';
+            foreach ($users as $user) {
+                $items .= html_writer::tag('li', s(fullname($user)) . $post('slipaddstudent', html_writer::empty_tag('input',
+                    ['type' => 'hidden', 'name' => 'student', 'value' => $user->id]) . html_writer::tag('button',
+                    get_string('add'), ['type' => 'submit', 'class' => 'btn btn-sm btn-link p-0']), 'd-inline ms-2'));
+            }
+            $html .= $items !== '' ? html_writer::tag('ul', $items, ['class' => 'small mt-2'])
+                : html_writer::tag('p', get_string('nobodyfound', 'local_documents'), ['class' => 'small mt-2']);
+        }
+
+        // Who it goes to now.
+        if ($list) {
+            $rows = '';
+            foreach ($list as $slip) {
+                $rows .= html_writer::tag('li', s($slip->holdername) . (trim((string)$slip->gradename) !== ''
+                    ? html_writer::span(' · ' . s($slip->gradename), 'text-muted') : '')
+                    . $post('slipremove', html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'slip',
+                    'value' => $slip->id]) . html_writer::tag('button', get_string('remove'), ['type' => 'submit',
+                    'class' => 'btn btn-sm btn-link p-0']), 'd-inline ms-2'));
+            }
+            $html .= html_writer::tag('ol', $rows, ['class' => 'small mt-3 local-documents-recipients']);
+        } else {
+            $html .= html_writer::tag('p', get_string('recipientsnone', 'local_documents'), ['class' => 'small mt-3']);
+        }
+        return html_writer::div($html, 'local-documents-card local-documents-recipients-card mt-4 p-3');
     }
 }

@@ -27,6 +27,7 @@ require_once(__DIR__ . '/../../config.php');
 use local_documents\form\draft_form;
 use local_documents\local\companions;
 use local_documents\local\documents;
+use local_documents\local\slips;
 use local_documents\local\sources;
 use local_documents\local\templates;
 use local_documents\local\ui;
@@ -76,6 +77,19 @@ if (in_array($action, ['companionadd', 'companionexternal', 'companionprepare', 
         }
     } catch (moodle_exception $e) {
         redirect($url, $e->getMessage(), null, \core\output\notification::NOTIFY_ERROR);
+    }
+    redirect($url);
+}
+// An authorisation's students: one consent slip each (docs/documents-plan.md 15).
+if (in_array($action, ['slipadd', 'slipaddstudent', 'slipremove'], true) && confirm_sesskey()) {
+    if ($action === 'slipadd') {
+        $added = slips::add_pick($id, required_param('pick', PARAM_RAW_TRIMMED));
+        redirect($url, get_string('recipientsadded', 'local_documents', $added), null,
+            \core\output\notification::NOTIFY_SUCCESS);
+    } else if ($action === 'slipaddstudent') {
+        slips::add_student($id, required_param('student', PARAM_INT));
+    } else {
+        slips::remove($id, required_param('slip', PARAM_INT));
     }
     redirect($url);
 }
@@ -187,6 +201,9 @@ echo $OUTPUT->render($delete);
 echo html_writer::end_div();
 if (companions::enabled($bundle)) {
     echo ui::companions_card($bundle, $composed['companions'], $url);
+}
+if (slips::enabled($bundle['tplver']) && $bundle['type']->subject === 'group') {
+    echo ui::recipients_card($id, $url, trim(optional_param('findstudent', '', PARAM_TEXT)));
 }
 echo html_writer::end_div();
 

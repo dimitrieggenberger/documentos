@@ -76,6 +76,8 @@ if ($result !== null) {
             [get_string('validuntil', 'local_documents'), $result['validuntil']],
             [get_string('issuedbyschool', 'local_documents'), $result['school'] . ' · ' . $result['unit']],
             [get_string('signedby', 'local_documents'), implode('; ', $result['signers'])],
+            [get_string('recipients', 'local_documents'), !empty($result['recipients'])
+                ? get_string('verifyrecipients', 'local_documents', (int)$result['recipients']) : ''],
         ];
         if ($status === 'recalled') {
             $rows[] = [get_string('recalledon', 'local_documents'), $result['recalled']];

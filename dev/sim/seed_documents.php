@@ -164,7 +164,7 @@ purge_caches(["muc" => false, "other" => true]);
 
 // The issuing units and who signs for each: Dirección (Rosa Gómez), Secretaría (Elena Castillo),
 // Subdirección (Pablo Ortiz), Gerencia General (Mario Fuentes), Gerencia Académica (Lucía Bonilla).
-// The school's units may issue every type, the Gerencias circulars and memorandums; the catalogue's
+// The school's units may issue every type, the Gerencias circulars, memorandums and authorisations; the catalogue's
 // signatures stay. Nobody substitutes anybody: a scenario sets that up itself.
 \local_documents\local\units::install_defaults();
 $heads = [
@@ -174,8 +174,10 @@ $heads = [
     'GG' => ['mfuentes', 'Lic. Mario Fuentes', 'Gerente General', 'gerencia@example.invalid', '(+504) 0000-0004'],
     'GA' => ['lbonilla', 'MSc. Lucía Bonilla', 'Gerente Académica', 'academica@example.invalid', '(+504) 0000-0005'],
 ];
-$letters = array_map('intval', $DB->get_fieldset_select('local_documents_type', 'id',
-    "shortname IN ('circular', 'memorandum')"));
+// What every unit issues: circulars, memorandums and the authorisations for families.
+[$everyunit, $everyparams] = $DB->get_in_or_equal(array_keys(array_filter(\local_documents\local\catalog::types(),
+    static fn($type) => !empty($type['everyunit']))));
+$letters = array_map('intval', $DB->get_fieldset_select('local_documents_type', 'id', "shortname $everyunit", $everyparams));
 $alltypes = array_map('intval', $DB->get_fieldset_select('local_documents_type', 'id', '1 = 1'));
 foreach ($heads as $code => [$username, $name, $title, $email, $phone]) {
     $unit = \local_documents\local\units::by_code($code);

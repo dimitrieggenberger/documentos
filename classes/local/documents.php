@@ -134,6 +134,10 @@ class documents {
             'data' => json_encode($data), 'createdby' => $creatorid, 'timecreated' => $now, 'timemodified' => $now,
         ]);
         $DB->set_field('local_documents_doc', 'rootid', $id, ['id' => $id]);
+        // An authorisation about one student carries that student's consent slip.
+        if ($userid > 0 && slips::enabled($tplver)) {
+            slips::add_student($id, $userid);
+        }
         self::log($id, 'created', $creatorid);
         return $id;
     }
@@ -233,6 +237,9 @@ class documents {
             'unit' => config::unit((string)$doc->unitcode),
             'signaturemode' => self::signature_mode($bundle['type']),
             'companions' => companions::resolve($data),
+            // The consent slip's own text, the same for every student; each slip adds who it is for.
+            'consenthtml' => slips::enabled($bundle['tplver']) ? templates::render((string)$bundle['tplver']->consent,
+                $collected['values'], $collected['tables']) : '',
             'warnings' => $collected['warnings'],
             'missing' => array_values(array_unique($missing)),
             'blocked' => $bundle['type']->source === 'grades' && $collected['record'] !== null
@@ -271,6 +278,9 @@ class documents {
             if ((int)$signer['userid'] <= 0) {
                 $problems[] = get_string('unitwithouthead', 'local_documents', s($signer['unitname'] ?: $signer['unitcode']));
             }
+        }
+        if (slips::enabled($bundle['tplver']) && !slips::list((int)$doc->id)) {
+            $problems[] = get_string('needsrecipients', 'local_documents');
         }
         // A file goes out with its companions issued.
         return array_merge($problems, companions::problems($bundle['data']));
@@ -452,6 +462,10 @@ class documents {
         $given = $DB->count_records('local_documents_approval', ['docid' => $id, 'status' => 'approved']);
         $open = $DB->count_records('local_documents_approval', ['docid' => $id, 'status' => 'pending']);
         $handwritten = self::signature_mode($bundle['type']) === self::SIGN_HANDWRITTEN;
+        $withslips = slips::enabled($bundle['tplver']);
+        if ($withslips) {
+            slips::refresh($id);
+        }
         if ($open > 0 || ($required > 0 && $given === 0 && !$handwritten)) {
             throw new \moodle_exception('signaturesmissing', 'local_documents');
         }
@@ -510,6 +524,7 @@ class documents {
                 'signaturemode' => $handwritten ? self::SIGN_HANDWRITTEN : self::SIGN_ELECTRONIC,
                 // The documents that go with it, as the index under the signatures prints them.
                 'companions' => $composed['companions'],
+                'consenthtml' => $composed['consenthtml'],
                 // The law the electronic signatures were given under, as the footer prints it.
                 'signaturelaw' => $composed['signers'] && !$handwritten ? config::signature_law() : '',
             ];
@@ -541,6 +556,12 @@ class documents {
                 'contextid' => $context->id, 'component' => 'local_documents', 'filearea' => self::FILEAREA,
                 'itemid' => $doc->id, 'filepath' => '/', 'filename' => self::filename($doc),
             ], $content);
+            // Each student's own PDF: the letter and their slip, to send to that family.
+            if ($withslips) {
+                foreach (slips::list($id) as $slip) {
+                    slips::store_pdf($slip, pdf::render($bundle, true, [$slip]), $number);
+                }
+            }
 
             if ($previous) {
                 $DB->update_record('local_documents_doc', (object)['id' => $previous->id,
@@ -594,6 +615,7 @@ class documents {
                 as $file) {
             $fs->create_file_from_storedfile(['itemid' => $newid], $file);
         }
+        slips::copy((int)$doc->id, $newid);
         self::log($newid, 'created', $userid, 'v' . ($max + 1));
         self::log((int)$doc->id, 'revisionstarted', $userid, 'v' . ($max + 1));
         return $newid;
@@ -639,6 +661,7 @@ class documents {
         self::require_draft($doc);
         get_file_storage()->delete_area_files(\context_system::instance()->id, 'local_documents', self::ATTACHMENTS, $id);
         $DB->delete_records('local_documents_approval', ['docid' => $id]);
+        slips::delete_all($id);
         $DB->delete_records('local_documents_log', ['docid' => $id]);
         $DB->delete_records('local_documents_doc', ['id' => $id]);
     }
@@ -668,7 +691,8 @@ class documents {
 
     /**
      * The SHA-256 of what a signer approves: the type and template version, the issuing unit, the holder,
-     * the title, every value and the text of the draft, and the attachments. The document is locked while
+     * the title, every value and the text of the draft, the attachments, and the students an authorisation
+     * goes to. The document is locked while
      * it waits, so the issued document must have the same fingerprint as every signature given on it.
      *
      * @param \stdClass $doc
@@ -677,9 +701,25 @@ class documents {
     public static function fingerprint(\stdClass $doc): string {
         $data = self::data($doc);
         unset($data['submittedby'], $data['frozen'], $data['signerssnapshot']);
-        return hash('sha256', json_encode([(int)$doc->typeid, (int)$doc->tplverid, (string)$doc->unitcode,
-            (string)$doc->holdername, (string)$doc->holderidnumber, (string)$doc->title, $data,
-            array_column(self::attachments($doc), 'sha256')]));
+        $parts = [(int)$doc->typeid, (int)$doc->tplverid, (string)$doc->unitcode, (string)$doc->holdername,
+            (string)$doc->holderidnumber, (string)$doc->title, $data, array_column(self::attachments($doc), 'sha256')];
+        // An authorisation's students; left out when there are none, so earlier fingerprints still match.
+        if ($students = self::slip_userids((int)$doc->id)) {
+            $parts[] = $students;
+        }
+        return hash('sha256', json_encode($parts));
+    }
+
+    /**
+     * The students an authorisation goes to, for its fingerprint: who it is for is part of what is signed.
+     *
+     * @param int $docid
+     * @return int[]
+     */
+    private static function slip_userids(int $docid): array {
+        $ids = array_map(static fn($slip) => (int)$slip->userid, slips::list($docid));
+        sort($ids);
+        return $ids;
     }
 
     /**

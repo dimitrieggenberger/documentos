@@ -28,6 +28,7 @@ use local_documents\form\recall_form;
 use local_documents\local\config;
 use local_documents\local\documents;
 use local_documents\local\numbering;
+use local_documents\local\slips;
 use local_documents\local\ui;
 
 require_login();
@@ -43,6 +44,24 @@ $url = new moodle_url('/local/documents/view.php', ['id' => $id]);
 $canissue = has_capability('local/documents:issue', $context);
 $canrecall = has_capability('local/documents:recall', $context);
 
+// The list of an authorisation's answers, for the day of the activity.
+if ($action === 'exportslips') {
+    require_once($CFG->libdir . '/csvlib.class.php');
+    $rows = [];
+    foreach (slips::list($id) as $slip) {
+        $rows[] = [$slip->holdername, (string)$slip->holderidnumber, (string)$slip->gradename,
+            numbering::format_code((string)$slip->verifycode), get_string('response_' . $slip->response, 'local_documents'),
+            (int)$slip->responsedate > 0 ? userdate((int)$slip->responsedate, get_string('strftimedatefullshort', 'langconfig'))
+                : '', (string)$slip->note];
+    }
+    documents::log($id, 'downloaded', (int)$USER->id, 'csv');
+    csv_export_writer::download_array(clean_filename((string)$doc->number . ' respuestas'), [
+        get_string('holder', 'local_documents'), get_string('holderidnumber', 'local_documents'),
+        get_string('slipgradecol', 'local_documents'), get_string('verifycode', 'local_documents'),
+        get_string('response', 'local_documents'), get_string('responsedate', 'local_documents'),
+        get_string('responsenote', 'local_documents')], $rows);
+    exit;
+}
 if ($action === 'withdraw' && confirm_sesskey()) {
     require_capability('local/documents:issue', $context);
     documents::withdraw($id, (int)$USER->id);
@@ -86,7 +105,9 @@ $rows = [
     [get_string('version', 'local_documents'), (int)$doc->docversion],
     [get_string('documenttype', 'local_documents'), s($bundle['type']->name) . ' · '
         . html_writer::span(s($bundle['series']->code . ' (' . $bundle['series']->trdcode . ')'), 'text-muted')],
-    [get_string('holder', 'local_documents'), ($doc->holdername ? s($doc->holdername) : '—')
+    [get_string('holder', 'local_documents'), ($doc->holdername ? s($doc->holdername)
+        : ($bundle['type']->subject === 'group' ? get_string('verifyrecipients', 'local_documents',
+            count(slips::list($id))) : '—'))
         . ($doc->holderidnumber ? html_writer::span(' · ' . s($doc->holderidnumber), 'text-muted') : '')],
     [get_string('unit', 'local_documents'), s($doc->unitcode . ' — ' . (config::units()[$doc->unitcode] ?? ''))],
 ];
@@ -200,6 +221,55 @@ if ($composed['attachments']) {
         ['id' => $id, 'file' => $a['fileid']]), s($a['name'])) . ' · ' . display_size($a['size'])
         . html_writer::div('SHA-256 ' . html_writer::tag('code', s($a['sha256'])), 'small text-muted text-break'),
         $composed['attachments']), [], 'ol');
+}
+
+// An authorisation: one consent slip per student, its own PDF to send, and what the family answered.
+$slipsofdoc = slips::list($id);
+if ($slipsofdoc) {
+    $issued = !in_array($doc->status, [documents::STATUS_DRAFT, documents::STATUS_PENDING], true);
+    $counts = slips::counts($slipsofdoc);
+    echo html_writer::tag('h3', get_string('slips', 'local_documents'), ['class' => 'h5 mt-4', 'id' => 'slips']);
+    if ($issued) {
+        echo html_writer::div(implode(' ', array_map(static fn($key, $class) => html_writer::span(
+            get_string('slipcount_' . $key, 'local_documents', $counts[$key]), 'badge ' . $class),
+            [slips::YES, slips::NO, slips::PENDING], ['badge-success bg-success', 'badge-danger bg-danger',
+            'badge-secondary bg-secondary'])) . ' ' . html_writer::link(new moodle_url($url, ['action' => 'exportslips']),
+            get_string('slipsexport', 'local_documents'), ['class' => 'btn btn-sm btn-outline-secondary ms-2']),
+            'mb-2 d-flex flex-wrap align-items-center gap-1');
+    }
+    $sl = new html_table();
+    $sl->attributes['class'] = 'generaltable local-documents-slips';
+    $sl->head = [get_string('holder', 'local_documents'), get_string('verifycode', 'local_documents'),
+        get_string('response', 'local_documents'), ''];
+    $badges = [slips::YES => 'badge-success bg-success', slips::NO => 'badge-danger bg-danger',
+        slips::PENDING => 'badge-secondary bg-secondary'];
+    foreach ($slipsofdoc as $slip) {
+        $links = [];
+        if ($issued) {
+            $links[] = html_writer::link(new moodle_url('/local/documents/download.php', ['id' => $id, 'slip' => $slip->id]),
+                get_string('slippdf', 'local_documents'), ['class' => 'btn btn-sm btn-outline-secondary']);
+            if (slips::scan($slip)) {
+                $links[] = html_writer::link(new moodle_url('/local/documents/download.php', ['id' => $id,
+                    'slip' => $slip->id, 'scan' => 1]), get_string('slipscan', 'local_documents'),
+                    ['class' => 'btn btn-sm btn-outline-secondary']);
+            }
+            if ($canissue) {
+                $links[] = html_writer::link(new moodle_url('/local/documents/response.php', ['slip' => $slip->id]),
+                    get_string('recordresponse', 'local_documents'), ['class' => 'btn btn-sm btn-outline-primary']);
+            }
+        }
+        $sl->data[] = [
+            s($slip->holdername) . (trim((string)$slip->gradename) !== '' ? html_writer::div(s($slip->gradename),
+                'small text-muted') : ''),
+            html_writer::tag('code', s(numbering::format_code((string)$slip->verifycode))),
+            html_writer::span(get_string('response_' . $slip->response, 'local_documents'), 'badge ' . $badges[$slip->response])
+                . ((int)$slip->responsedate > 0 ? html_writer::div(userdate((int)$slip->responsedate,
+                get_string('strftimedatefullshort', 'langconfig')), 'small text-muted') : '')
+                . (trim((string)$slip->note) !== '' ? html_writer::div(s($slip->note), 'small') : ''),
+            html_writer::div(implode(' ', $links), 'd-flex flex-wrap gap-1'),
+        ];
+    }
+    echo html_writer::table($sl);
 }
 
 // Versions.

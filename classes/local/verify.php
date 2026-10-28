@@ -68,7 +68,12 @@ class verify {
             return ['status' => 'invalid'];
         }
         $doc = $DB->get_record('local_documents_doc', ['verifycode' => $code]);
-        if (!$doc || $doc->status === documents::STATUS_DRAFT) {
+        // A consent slip of an authorisation has its own code: it answers for the letter it belongs to.
+        $slip = $doc ? null : $DB->get_record('local_documents_slip', ['verifycode' => $code]);
+        if ($slip) {
+            $doc = $DB->get_record('local_documents_doc', ['id' => $slip->docid]);
+        }
+        if (!$doc || in_array($doc->status, [documents::STATUS_DRAFT, documents::STATUS_PENDING], true)) {
             return ['status' => 'notfound'];
         }
         $data = documents::data($doc);
@@ -121,6 +126,16 @@ class verify {
                 ? trim($frozen['signaturelaw'] . ' ' . get_string_manager()->get_string('verifyevidence', 'local_documents',
                     null, 'es')) : ''),
         ];
+        if ($slip) {
+            // The student's own copy: their name as the slip prints it, and the fingerprint of their PDF.
+            $result['slip'] = true;
+            $result['holder'] = (string)$slip->holdername;
+            $result['holderid'] = self::mask((string)$slip->holderidnumber);
+            $result['sha256'] = (string)$slip->pdfhash;
+            $result['title'] = get_string_manager()->get_string('verifysliptitle', 'local_documents', $result['title'], 'es');
+        } else if ($DB->record_exists('local_documents_slip', ['docid' => $doc->id])) {
+            $result['recipients'] = $DB->count_records('local_documents_slip', ['docid' => $doc->id]);
+        }
         if ($status === 'recalled') {
             $result['recalled'] = spanish::date_long((int)$doc->timerecalled);
             $result['recallnote'] = (string)$doc->recallnote;

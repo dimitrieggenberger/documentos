@@ -52,9 +52,10 @@ class draft_form extends \moodleform {
         $mform->addElement('hidden', 'id', $doc->id);
         $mform->setType('id', PARAM_INT);
 
-        $mform->addElement('header', 'whohdr', get_string($type->subject === 'none' ? 'letterhdr' : 'whohdr',
-            'local_documents'));
-        if ($type->subject !== 'none') {
+        // A letter, or an authorisation to a group (its students are picked beside the form): nobody to name here.
+        $nobody = in_array($type->subject, ['none', 'group'], true);
+        $mform->addElement('header', 'whohdr', get_string($nobody ? 'letterhdr' : 'whohdr', 'local_documents'));
+        if (!$nobody) {
             if ((int)$doc->userid === 0 && (int)$doc->docversion === 1) {
                 $mform->addElement('text', 'holdername', get_string('holder', 'local_documents'), ['size' => 50]);
                 $mform->addRule('holdername', null, 'required', null, 'client');
@@ -107,7 +108,9 @@ class draft_form extends \moodleform {
                         $mform->addElement('text', $name, s($field['label']), ['size' => 60]);
                 }
                 $mform->setType($name, PARAM_TEXT);
-                if ($field['required']) {
+                // A date is checked when issuing (a missing value blocks it): the client rule does not work on the
+                // optional date selector.
+                if ($field['required'] && $field['type'] !== 'date') {
                     $mform->addRule($name, null, 'required', null, 'client');
                 }
             }

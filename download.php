@@ -29,6 +29,7 @@ require_once(__DIR__ . '/../../config.php');
 
 use local_documents\local\documents;
 use local_documents\local\pdf;
+use local_documents\local\slips;
 
 require_login();
 $context = context_system::instance();
@@ -36,12 +37,26 @@ $PAGE->set_context($context);
 
 $id = required_param('id', PARAM_INT);
 $fileid = optional_param('file', 0, PARAM_INT);
+$slipid = optional_param('slip', 0, PARAM_INT);
+$scan = optional_param('scan', 0, PARAM_BOOL);
 $bundle = documents::get($id);
 $doc = $bundle['doc'];
 
 $signer = $doc->status === documents::STATUS_PENDING && documents::my_approvals($id, (int)$USER->id);
 if (!$signer) {
     require_capability('local/documents:view', $context);
+}
+
+// One student's own PDF of an authorisation (letter and slip), or the slip the family returned, scanned.
+if ($slipid) {
+    $slip = $DB->get_record('local_documents_slip', ['id' => $slipid, 'docid' => $id], '*', MUST_EXIST);
+    $file = $scan ? slips::scan($slip) : slips::pdf($slip);
+    if (!$file) {
+        throw new moodle_exception('filemissing', 'local_documents');
+    }
+    documents::log($id, 'downloaded', (int)$USER->id, $slip->holdername);
+    \core\session\manager::write_close();
+    send_stored_file($file, 0, 0, false);
 }
 
 if ($fileid) {

@@ -183,5 +183,39 @@ function xmldb_local_documents_upgrade($oldversion) {
         }
         upgrade_plugin_savepoint(true, 2026103300, 'local', 'documents');
     }
+
+    if ($oldversion < 2026103400) {
+        // Authorisations for families with a consent slip (docs/documents-plan.md 15).
+        $table = new xmldb_table('local_documents_tplver');
+        $field = new xmldb_field('consent', XMLDB_TYPE_TEXT, null, null, null, null, null, 'allowbodyedit');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        $table = new xmldb_table('local_documents_slip');
+        if (!$dbman->table_exists($table)) {
+            $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE);
+            $table->add_field('docid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL);
+            $table->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL);
+            $table->add_field('holdername', XMLDB_TYPE_CHAR, '255', null, XMLDB_NOTNULL);
+            $table->add_field('holderidnumber', XMLDB_TYPE_CHAR, '100');
+            $table->add_field('gradename', XMLDB_TYPE_CHAR, '100');
+            $table->add_field('verifycode', XMLDB_TYPE_CHAR, '20', null, XMLDB_NOTNULL);
+            $table->add_field('sortorder', XMLDB_TYPE_INTEGER, '5', null, XMLDB_NOTNULL, null, '0');
+            $table->add_field('pdfhash', XMLDB_TYPE_CHAR, '64');
+            $table->add_field('response', XMLDB_TYPE_CHAR, '10', null, XMLDB_NOTNULL, null, 'pending');
+            $table->add_field('responsedate', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $table->add_field('note', XMLDB_TYPE_TEXT);
+            $table->add_field('recordedby', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $table->add_field('timerecorded', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+            $table->add_key('docid', XMLDB_KEY_FOREIGN, ['docid'], 'local_documents_doc', ['id']);
+            $table->add_index('verifycode', XMLDB_INDEX_UNIQUE, ['verifycode']);
+            $table->add_index('userid', XMLDB_INDEX_NOTUNIQUE, ['userid']);
+            $dbman->create_table($table);
+        }
+        // The AUTOR series and the five authorisations, issued by any unit and signed by its head.
+        \local_documents\local\catalog::install();
+        upgrade_plugin_savepoint(true, 2026103400, 'local', 'documents');
+    }
     return true;
 }

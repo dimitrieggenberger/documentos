@@ -58,7 +58,7 @@ class template_form extends \moodleform {
         $mform->addElement('select', 'seriesid', get_string('series', 'local_documents'), $series);
         $mform->addHelpButton('seriesid', 'series', 'local_documents');
         $subjects = [];
-        foreach (['student', 'staff', 'person', 'none'] as $subject) {
+        foreach (['student', 'staff', 'person', 'none', 'group'] as $subject) {
             $subjects[$subject] = get_string('subject_' . $subject, 'local_documents');
         }
         $mform->addElement('select', 'subject', get_string('subject', 'local_documents'), $subjects);
@@ -122,6 +122,11 @@ class template_form extends \moodleform {
             ['rows' => 6, 'cols' => 90, 'class' => 'local-documents-bodyfield']);
         $mform->setType('fields', PARAM_RAW);
         $mform->addHelpButton('fields', 'fields', 'local_documents');
+        $mform->addElement('textarea', 'consent', get_string('consent', 'local_documents'),
+            ['rows' => 5, 'cols' => 90, 'class' => 'local-documents-bodyfield']
+            + templates::editor_attributes($this->_customdata['current'] ?? null));
+        $mform->setType('consent', PARAM_RAW);
+        $mform->addHelpButton('consent', 'consent', 'local_documents');
         $mform->addElement('advcheckbox', 'allowbodyedit', get_string('allowbodyedit', 'local_documents'));
         $mform->addHelpButton('allowbodyedit', 'allowbodyedit', 'local_documents');
         $mform->addElement('textarea', 'changenote', get_string('changenote', 'local_documents'), ['rows' => 2, 'cols' => 90]);
@@ -167,6 +172,7 @@ class template_form extends \moodleform {
         return $norm($current->title) !== $norm($data['title'] ?? '')
             || $norm($current->body) !== $norm($data['body'] ?? '')
             || $norm($current->fields) !== $norm($data['fields'] ?? '')
+            || $norm($current->consent ?? '') !== $norm($data['consent'] ?? '')
             || (int)$current->allowbodyedit !== (int)!empty($data['allowbodyedit']);
     }
 }

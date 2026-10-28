@@ -84,7 +84,8 @@ echo html_writer::tag('p', html_writer::tag('strong', s($type->name)) . ' · '
     . html_writer::link(new moodle_url('/local/documents/create.php'), get_string('changedocument', 'local_documents')));
 
 if (!in_array($type->subject, ['student', 'staff'], true)) {
-    echo html_writer::tag('p', get_string($type->subject === 'person' ? 'startperson' : 'startletter', 'local_documents'));
+    echo html_writer::tag('p', get_string(['person' => 'startperson', 'group' => 'startgroup'][$type->subject] ?? 'startletter',
+        'local_documents'));
     echo html_writer::start_tag('form', ['method' => 'post', 'action' => $url->out_omit_querystring()]);
     echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]);
     echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'type', 'value' => $type->id]);

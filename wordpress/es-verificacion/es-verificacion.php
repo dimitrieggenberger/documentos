@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Verificación de documentos (EuropaSchule)
  * Description: Página pública para verificar los documentos oficiales emitidos en la plataforma escolar (Moodle, local_documents): el código QR de cada constancia o certificación abre esta página. Shortcode: [es_verificacion].
- * Version: 0.5.0
+ * Version: 0.6.0
  * Requires at least: 6.0
  * Requires PHP: 8.1
  * Author: Educación Helvética SA / EuropaSchule
@@ -129,8 +129,8 @@ function es_verificacion_icon(string $tone): string {
  * @return string
  */
 function es_verificacion_shortcode(): string {
-    wp_enqueue_style('es-verificacion', plugins_url('es-verificacion.css', __FILE__), [], '0.5.0');
-    wp_enqueue_script('es-verificacion', plugins_url('es-verificacion.js', __FILE__), [], '0.5.0', true);
+    wp_enqueue_style('es-verificacion', plugins_url('es-verificacion.css', __FILE__), [], '0.6.0');
+    wp_enqueue_script('es-verificacion', plugins_url('es-verificacion.js', __FILE__), [], '0.6.0', true);
 
     $code = isset($_GET['c']) ? es_verificacion_clean_code(sanitize_text_field(wp_unslash($_GET['c']))) : '';
     $display = $code !== '' ? implode('-', str_split($code, 4)) : '';
@@ -162,6 +162,8 @@ function es_verificacion_shortcode(): string {
                 'Válido hasta' => $result['validuntil'] ?? '',
                 'Emitido por' => trim(($result['school'] ?? '') . ' · ' . ($result['unit'] ?? ''), ' ·'),
                 'Firmado por' => implode('; ', (array)($result['signers'] ?? [])),
+                'Dirigida a' => !empty($result['recipients'])
+                    ? (int)$result['recipients'] . ' estudiantes, cada uno con su propia colilla' : '',
             ];
             if ($result['status'] === 'recalled') {
                 $rows['Anulado el'] = $result['recalled'] ?? '';

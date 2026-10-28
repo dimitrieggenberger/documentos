@@ -157,7 +157,7 @@ const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (
   const signer1 = await a.locator('#id_signer1 option:checked').innerText();
   const signer2 = await a.locator('#id_signer2 option:checked').innerText();
   check(/SCE/.test(signer1) && /DCE/.test(signer2), 'template: certificación signed by Secretaría then Dirección');
-  check(await a.locator('.local-documents-toolbar').count() === 1, 'template: the text toolbar');
+  check(await a.locator('.local-documents-toolbar').count() >= 1, 'template: the text toolbar');
   await shot(a, 'documents-template');
   await a.goto(L + 'create.php');
   await Promise.all([a.waitForNavigation(), a.click('.local-documents-typecard:has-text("Oficio")')]);
@@ -257,6 +257,58 @@ const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (
   const fverify = await pub.locator('.local-documents-verify-result').innerText();
   check(/CONSCOND/.test(fverify) && /CONSSOL/.test(fverify) && /112-2024/.test(fverify), 'public: the file lists its companions');
   await shot(pub, 'documents-verify-file');
+
+  // An authorisation for families: the Gerente Académica asks a whole course for an excursion, a consent slip each.
+  const ga = await login('lbonilla', 'Sim-Docs-2026!');
+  await ga.goto(L + 'create.php');
+  await Promise.all([ga.waitForNavigation(), ga.click('.local-documents-typecard:has-text("Autorización de salida o excursión")')]);
+  await Promise.all([ga.waitForNavigation(), ga.click('button:has-text("Iniciar borrador"), button:has-text("Start draft")')]);
+  const authurl = ga.url();
+  check(await ga.inputValue('#id_unitcode') === 'GA', 'authorisation: issued by the Gerencia Académica');
+  await ga.fill('#id_f_actividad', 'Visita al Museo de Antropología');
+  await ga.fill('#id_f_lugar', 'Museo de Antropología e Historia de San Pedro Sula');
+  await ga.check('#id_f_fecha_enabled', { force: true });
+  await ga.selectOption('#id_f_fecha_day', '20');
+  await ga.selectOption('#id_f_fecha_month', '11');
+  await ga.fill('#id_f_horario', 'de 7:30 a 13:00');
+  await ga.fill('#id_f_transporte', 'bus del centro');
+  await ga.check('#id_f_devolver_antes_enabled', { force: true });
+  await ga.selectOption('#id_f_devolver_antes_day', '14');
+  await ga.selectOption('#id_f_devolver_antes_month', '11');
+  await Promise.all([ga.waitForNavigation(), ga.click('#id_save')]);
+  check(await ga.locator('.local-documents-recipients-card').count() === 1, 'authorisation: pick the students');
+  const pick = await ga.locator('select[name="pick"] option', { hasText: 'Biología 10G.26' }).first().getAttribute('value');
+  await ga.selectOption('select[name="pick"]', pick);
+  await Promise.all([ga.waitForNavigation(), ga.locator('form:has(select[name="pick"]) button[type="submit"]').click()]);
+  const recipients = await ga.locator('.local-documents-recipients li').count();
+  check(recipients >= 5, 'authorisation: the course\'s students, ' + recipients);
+  const colilla = await ga.locator('.local-documents-sheet-colilla').innerText();
+  check(/AUTORIZO/.test(colilla) && /madre, padre o persona responsable legal/.test(colilla), 'authorisation: the slip on the preview');
+  await shot(ga, 'documents-authorisation-draft');
+  await Promise.all([ga.waitForNavigation(), ga.click('#id_issue')]);
+  await Promise.all([ga.waitForNavigation(), ga.click('[role="main"] form button.btn-primary')]);
+  const authnumber = (await ga.locator('.local-documents-record .local-documents-number').innerText()).trim();
+  check(/^AUTOR-\d{3}-.*-GA-EX$/.test(authnumber), 'authorisation: issued alone by its head: ' + authnumber);
+  check(await ga.locator('table.local-documents-slips tbody tr').count() === recipients, 'authorisation: a slip per student');
+  const aid = new URL(ga.url()).searchParams.get('id');
+  const [apdf] = await Promise.all([ga.waitForEvent('download'),
+    ga.locator('table.local-documents-slips a:has-text("PDF para la familia"), table.local-documents-slips a:has-text("PDF for the family")').first().click()]);
+  fs.copyFileSync(await apdf.path(), path.join(out, 'documents-authorisation-family.pdf'));
+  const [allpdf] = await Promise.all([ga.waitForEvent('download'), ga.locator(`a[href$="download.php?id=${aid}"]`).first().click()]);
+  fs.copyFileSync(await allpdf.path(), path.join(out, 'documents-authorisation-all.pdf'));
+  const slipcode = (await ga.locator('table.local-documents-slips code').first().innerText()).trim();
+  const slipname = (await ga.locator('table.local-documents-slips tbody tr').first().locator('td').first().innerText()).split('\n')[0].trim();
+  await Promise.all([ga.waitForNavigation(), ga.locator('table.local-documents-slips a:has-text("Registrar la respuesta"), table.local-documents-slips a:has-text("Record the answer")').first().click()]);
+  await ga.check('input[name="response"][value="yes"]', { force: true });
+  await ga.fill('#id_note', 'Alergia al maní.');
+  await Promise.all([ga.waitForNavigation(), ga.click('#id_submitbutton')]);
+  check(/1 autorizan|1 authorise/.test(await ga.locator('#slips + div, body').first().innerText()), 'authorisation: the answer counted');
+  await shot(ga, 'documents-authorisation-record');
+  await pub.goto(L + 'verify.php?c=' + slipcode);
+  const slipverify = await pub.locator('.local-documents-verify-result').innerText();
+  check(/Colilla de autorización/.test(slipverify) && slipverify.includes(slipname) && !/maní/.test(slipverify),
+    'public: the slip verifies for its student, without the answer');
+  await shot(pub, 'documents-verify-slip');
 
   // The director is away: Pablo Ortiz signs in substitution of her.
   await a.goto(L + 'units.php');

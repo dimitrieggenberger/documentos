@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.8.0] - 2026-10-28
+
+### Added
+
+- **Authorisations for families with a consent slip** (`docs/documents-plan.md` 15): series AUTOR and five types (excursion, data and images, health day, sharing the file with another school, extracurricular activity), issued by any unit and signed by its head. Each student gets the letter with a slip at its foot (AUTORIZO / NO AUTORIZO, what is authorised, lines for the adult's name, identity number, phone, date and signature), its own verification code and QR, and its own one-page PDF to send to the family. Students are picked on the draft by course, group or one by one; a type about one student carries their slip. On the record: the answers (authorises, does not, no answer), the date, a note and the returned slip scanned; counts and a CSV list. Verification answers for each slip's code without the answer. Upgrade 2026103400 (table `local_documents_slip`, `consent` on template versions).
+- Template versions have a **consent text** (the slip's own part), edited with the same toolbar.
+- WordPress plugin `es-verificacion` 0.6.0: how many students an authorisation went to.
+
+### Fixed
+
+- A document still waiting for signatures no longer reads as valid on the verification page.
+- Required date fields no longer block saving a draft in the browser (the check is made when issuing).
+
 ## [0.7.0] - 2026-10-28
 
 ### Added

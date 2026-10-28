@@ -301,3 +301,30 @@
         top: 72px;
     }
 }
+
+/* The consent slip (colilla) of an authorisation, in the live preview. */
+.local-documents-sheet-colilla {
+    margin-top: 1.5rem;
+    padding-top: .75rem;
+    border-top: 1px dashed #6a737b;
+    position: relative;
+}
+.local-documents-sheet-cut {
+    position: absolute;
+    top: -.6em;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0 .5em;
+    background: #fff;
+    color: #6a737b;
+    font-style: italic;
+    font-size: .85em;
+    white-space: nowrap;
+}
+.local-documents-sheet-box {
+    display: inline-block;
+    width: .9em;
+    height: .9em;
+    border: 1px solid currentColor;
+    vertical-align: -.1em;
+}

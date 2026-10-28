@@ -32,9 +32,11 @@ class pdf {
      *
      * @param array $bundle from documents::get()
      * @param bool $final
+     * @param \stdClass[]|null $slips an authorisation's students to print (one letter and slip each); null: all
+     *     of them when final, the first one in a preview
      * @return string the PDF bytes
      */
-    public static function render(array $bundle, bool $final): string {
+    public static function render(array $bundle, bool $final, ?array $slips = null): string {
         $doc = $bundle['doc'];
         $composed = documents::compose($bundle);
         $school = $composed['school'];
@@ -68,73 +70,83 @@ class pdf {
             'p' => [0 => ['h' => 0, 'n' => 0], 1 => ['h' => letter_pdf::PARAGRAPH, 'n' => 1]],
             'table' => [0 => ['h' => 0, 'n' => 0], 1 => ['h' => letter_pdf::PARAGRAPH, 'n' => 1]],
         ]);
-        $pdf->AddPage();
+        // One letter per student with a consent slip at its foot (an authorisation), else one letter.
+        $consent = (string)($composed['consenthtml'] ?? '');
+        $pages = $consent !== '' ? ($slips ?? ($final ? slips::list((int)$doc->id)
+            : array_slice(slips::list((int)$doc->id), 0, 1))) : [];
+        foreach ($pages ?: [null] as $i => $slip) {
+            $pdf->AddPage();
 
-        $width = letter_pdf::text_width();
-        $left = letter_pdf::MARGIN_X;
-        $y = letter_pdf::MARGIN_Y + letter_pdf::SEAL + letter_pdf::AFTER_HEADER;
+            $width = letter_pdf::text_width();
+            $left = letter_pdf::MARGIN_X;
+            $y = letter_pdf::MARGIN_Y + letter_pdf::SEAL
+                + ($consent !== '' ? letter_pdf::AFTER_HEADER_COMPACT : letter_pdf::AFTER_HEADER);
 
-        // Place and date on the left (letters), the number on the right, as the instructivo prints it.
-        $pdf->SetTextColor(...letter_pdf::TEXT);
-        if ($bundle['type']->subject === 'none') {
-            $pdf->SetFont(letter_pdf::FONT, '', 8);
-            $pdf->SetXY($left, $y);
-            $pdf->Cell($width / 2, 10, $school['city'] . ', ' . $values['date.long'], 0, 0, 'L');
-        }
-        $pdf->SetFont(letter_pdf::FONT, 'B', 8);
-        $pdf->SetXY($left + $width / 2, $y);
-        $pdf->Cell($width / 2, 10, $final ? numbering::display((string)$doc->number) : $strings['nonumber'], 0, 2, 'R',
-            false, '', 1);
-        $pdf->SetTextColor(...letter_pdf::MUTED);
-        $pdf->SetFont(letter_pdf::FONT, '', 6);
-        $pdf->Cell($width / 2, 7.5, \core_text::strtoupper($school['officialname'] ?? $school['name']), 0, 2, 'R', false,
-            '', 1);
-        if ((int)$doc->docversion > 1) {
-            $pdf->SetFont(letter_pdf::FONT, 'I', 6);
-            $pdf->Cell($width / 2, 7.5, $strings['versionline'], 0, 2, 'R', false, '', 1);
-        }
-        $y += 10;
-
-        // The recipient: full name in bold, then position, institution, e-mail.
-        $recipient = array_values(array_filter([$values['f.cargo'] ?? '', $values['f.institucion'] ?? '',
-            $values['f.correo'] ?? ''], static fn($line) => trim((string)$line) !== ''));
-        $hasrecipient = $bundle['type']->subject === 'none' && trim((string)($values['f.destinatario'] ?? '')) !== '';
-        if ($hasrecipient) {
-            $y += letter_pdf::AFTER_DATE;
+            // Place and date on the left (letters), the number on the right, as the instructivo prints it.
             $pdf->SetTextColor(...letter_pdf::TEXT);
-            $pdf->SetFont(letter_pdf::FONT, 'B', 8);
-            $pdf->SetXY($left, $y);
-            $pdf->MultiCell($width, 10, (string)$values['f.destinatario'], 0, 'L', false, 1);
-            $pdf->SetFont(letter_pdf::FONT, '', 8);
-            foreach ($recipient as $line) {
-                $pdf->MultiCell($width, 10, (string)$line, 0, 'L', false, 1, $left);
+            if (in_array($bundle['type']->subject, ['none', 'group'], true)) {
+                $pdf->SetFont(letter_pdf::FONT, '', 8);
+                $pdf->SetXY($left, $y);
+                $pdf->Cell($width / 2, 10, $school['city'] . ', ' . $values['date.long'], 0, 0, 'L');
             }
-            $y = $pdf->GetY() + letter_pdf::AFTER_RECIPIENT;
-        } else {
-            $y = max($y + 7.5 * ((int)$doc->docversion > 1 ? 2 : 1), $pdf->GetY()) + letter_pdf::BEFORE_TITLE;
+            $pdf->SetFont(letter_pdf::FONT, 'B', 8);
+            $pdf->SetXY($left + $width / 2, $y);
+            $pdf->Cell($width / 2, 10, $final ? numbering::display((string)$doc->number) : $strings['nonumber'], 0, 2, 'R',
+                false, '', 1);
+            $pdf->SetTextColor(...letter_pdf::MUTED);
+            $pdf->SetFont(letter_pdf::FONT, '', 6);
+            $pdf->Cell($width / 2, 7.5, \core_text::strtoupper($school['officialname'] ?? $school['name']), 0, 2, 'R', false,
+                '', 1);
+            if ((int)$doc->docversion > 1) {
+                $pdf->SetFont(letter_pdf::FONT, 'I', 6);
+                $pdf->Cell($width / 2, 7.5, $strings['versionline'], 0, 2, 'R', false, '', 1);
+            }
+            $y += 10;
+
+            // The recipient: full name in bold, then position, institution, e-mail.
+            $recipient = array_values(array_filter([$values['f.cargo'] ?? '', $values['f.institucion'] ?? '',
+                $values['f.correo'] ?? ''], static fn($line) => trim((string)$line) !== ''));
+            $hasrecipient = $bundle['type']->subject === 'none' && trim((string)($values['f.destinatario'] ?? '')) !== '';
+            if ($hasrecipient) {
+                $y += letter_pdf::AFTER_DATE;
+                $pdf->SetTextColor(...letter_pdf::TEXT);
+                $pdf->SetFont(letter_pdf::FONT, 'B', 8);
+                $pdf->SetXY($left, $y);
+                $pdf->MultiCell($width, 10, (string)$values['f.destinatario'], 0, 'L', false, 1);
+                $pdf->SetFont(letter_pdf::FONT, '', 8);
+                foreach ($recipient as $line) {
+                    $pdf->MultiCell($width, 10, (string)$line, 0, 'L', false, 1, $left);
+                }
+                $y = $pdf->GetY() + letter_pdf::AFTER_RECIPIENT;
+            } else {
+                $y = max($y + 7.5 * ((int)$doc->docversion > 1 ? 2 : 1), $pdf->GetY()) + letter_pdf::BEFORE_TITLE;
+            }
+
+            // Title (H1, Poppins Bold 14 pt).
+            $pdf->SetTextColor(...letter_pdf::TEXT);
+            $pdf->SetFont(letter_pdf::FONT, 'B', 14);
+            $pdf->setCellHeightRatio(17 / 14);
+            $pdf->SetXY($left, $y);
+            $pdf->MultiCell($width, 17, $title, 0, 'L', false, 1);
+            $pdf->setCellHeightRatio(1.25);
+            $pdf->SetY($pdf->GetY() + letter_pdf::AFTER_TITLE);
+
+            // Body (8 pt on 10, justified paragraphs 10 pt apart).
+            $pdf->SetFont(letter_pdf::FONT, '', 8);
+            $pdf->writeHTML($composed['bodyhtml'], true, false, true, false, '');
+
+            // Signed by hand: lines to sign on, and no printed stamp, so the original carries the real seal.
+            $handwritten = ($composed['signaturemode'] ?? '') === documents::SIGN_HANDWRITTEN;
+            self::signatures($pdf, $composed['signers'], !empty($pdf->sheet['images']['stamp']) && $final && !$handwritten
+                ? $pdf->sheet['images']['stamp'] : '', $handwritten);
+
+            self::companions($pdf, $composed['companions'] ?? []);
+
+            self::attachments($pdf, $bundle['doc'], $i === 0 ? ($composed['attachments'] ?? []) : [], $strings, $final);
+            if ($consent !== '') {
+                self::colilla($pdf, $doc, $composed, $slip, $final);
+            }
         }
-
-        // Title (H1, Poppins Bold 14 pt).
-        $pdf->SetTextColor(...letter_pdf::TEXT);
-        $pdf->SetFont(letter_pdf::FONT, 'B', 14);
-        $pdf->setCellHeightRatio(17 / 14);
-        $pdf->SetXY($left, $y);
-        $pdf->MultiCell($width, 17, $title, 0, 'L', false, 1);
-        $pdf->setCellHeightRatio(1.25);
-        $pdf->SetY($pdf->GetY() + letter_pdf::AFTER_TITLE);
-
-        // Body (8 pt on 10, justified paragraphs 10 pt apart).
-        $pdf->SetFont(letter_pdf::FONT, '', 8);
-        $pdf->writeHTML($composed['bodyhtml'], true, false, true, false, '');
-
-        // Signed by hand: lines to sign on, and no printed stamp, so the original carries the real seal.
-        $handwritten = ($composed['signaturemode'] ?? '') === documents::SIGN_HANDWRITTEN;
-        self::signatures($pdf, $composed['signers'], !empty($pdf->sheet['images']['stamp']) && $final && !$handwritten
-            ? $pdf->sheet['images']['stamp'] : '', $handwritten);
-
-        self::companions($pdf, $composed['companions'] ?? []);
-
-        self::attachments($pdf, $bundle['doc'], $composed['attachments'] ?? [], $strings, $final);
 
         return $pdf->Output('', 'S');
     }
@@ -276,6 +288,150 @@ class pdf {
             }
         }
         $pdf->SetTextColor(...letter_pdf::TEXT);
+    }
+
+    /**
+     * The consent slip (colilla) at the foot of an authorisation, to cut off and return signed: who it is
+     * for, AUTORIZO / NO AUTORIZO, what is authorised, and lines for the adult's name, identity number,
+     * phone, date and signature; its own code and QR (docs/documents-plan.md 15).
+     *
+     * @param letter_pdf $pdf
+     * @param \stdClass $doc
+     * @param array $composed
+     * @param \stdClass|null $slip the student; null in a preview without students yet
+     * @param bool $final
+     * @return void
+     */
+    private static function colilla(letter_pdf $pdf, \stdClass $doc, array $composed, ?\stdClass $slip, bool $final): void {
+        // Drawn where the letter ends when it fits whole there, else at the top of a new page: tried, and undone
+        // when it ran past the page.
+        $limit = letter_pdf::PAGE_H - letter_pdf::MARGIN_Y - letter_pdf::FOOTER_H;
+        $page = $pdf->getPage();
+        $pdf->startTransaction();
+        $pdf->SetY($pdf->GetY() + 18);
+        self::colilla_draw($pdf, $doc, $composed, $slip, $final);
+        if ($pdf->getPage() === $page && $pdf->GetY() <= $limit) {
+            $pdf->commitTransaction();
+            return;
+        }
+        $pdf->rollbackTransaction(true);
+        $pdf->AddPage();
+        self::colilla_draw($pdf, $doc, $composed, $slip, $final);
+    }
+
+    /**
+     * The consent slip itself, from the current position down.
+     *
+     * @param letter_pdf $pdf
+     * @param \stdClass $doc
+     * @param array $composed
+     * @param \stdClass|null $slip
+     * @param bool $final
+     * @return void
+     */
+    private static function colilla_draw(letter_pdf $pdf, \stdClass $doc, array $composed, ?\stdClass $slip,
+            bool $final): void {
+        $sm = get_string_manager();
+        $str = static fn(string $key, $a = null) => $sm->get_string($key, 'local_documents', $a, 'es');
+        $left = letter_pdf::MARGIN_X;
+        $width = letter_pdf::text_width();
+
+        // The cut line, with what to do with the part below.
+        $y = $pdf->GetY();
+        $pdf->SetDrawColor(...letter_pdf::MUTED);
+        $pdf->SetLineStyle(['width' => 0.5, 'dash' => '3,3', 'color' => letter_pdf::MUTED]);
+        $pdf->Line($left - 30, $y, $left + $width + 30, $y);
+        $pdf->SetLineStyle(['width' => 0.5, 'dash' => 0, 'color' => letter_pdf::MUTED]);
+        $pdf->SetFont(letter_pdf::FONT, 'I', 6);
+        $pdf->SetTextColor(...letter_pdf::MUTED);
+        $pdf->SetFillColor(255, 255, 255);
+        $label = $str('pdfslipcut');
+        $labelw = $pdf->GetStringWidth($label) + 12;
+        $pdf->SetXY($left + ($width - $labelw) / 2, $y - 4);
+        $pdf->Cell($labelw, 8, $label, 0, 0, 'C', true);
+
+        // Title, number and where it goes back.
+        $values = $composed['values'];
+        $y += 12;
+        $pdf->SetTextColor(...letter_pdf::TEXT);
+        $pdf->SetFont(letter_pdf::FONT, 'B', 9);
+        $pdf->SetXY($left, $y);
+        $pdf->Cell($width / 2, 12, $str('pdfsliptitle'), 0, 0, 'L');
+        $pdf->SetFont(letter_pdf::FONT, '', 6);
+        $pdf->SetTextColor(...letter_pdf::MUTED);
+        $pdf->SetXY($left + $width / 2, $y + 2);
+        $pdf->Cell($width / 2, 8, $final ? numbering::display((string)$doc->number) : $str('pdfnonumber'), 0, 0, 'R', false,
+            '', 1);
+        $to = trim((string)($values['f.devolver_a'] ?? ''));
+        $by = trim((string)($values['f.devolver_antes'] ?? ''));
+        $pdf->SetY($y + 14);
+        if ($to !== '') {
+            $pdf->SetFont(letter_pdf::FONT, 'I', 7);
+            $pdf->MultiCell($width, 9, $str($by !== '' ? 'pdfslipreturnby' : 'pdfslipreturn', (object)['to' => $to, 'by' => $by]),
+                0, 'L', false, 1, $left);
+        }
+
+        // "Yo, ..., en mi calidad de madre, padre o persona responsable legal de <student>:"
+        $pdf->SetTextColor(...letter_pdf::TEXT);
+        $pdf->SetFont(letter_pdf::FONT, '', 8);
+        $student = $slip ? '<b>' . s($slip->holdername) . '</b>'
+            . (trim((string)$slip->holderidnumber) !== '' ? ', ' . s($str('pdfslipid', trim((string)$slip->holderidnumber))) : '')
+            . (trim((string)$slip->gradename) !== '' ? ', ' . s($str('pdfslipgrade', trim((string)$slip->gradename))) : '')
+            : s($str('pdfslipnostudent'));
+        $pdf->SetY($pdf->GetY() + 4);
+        // Left-aligned: a form, and TCPDF loses the space after bold text on a justified line.
+        $pdf->writeHTML('<p style="text-align:left;">' . s($str('pdfslipadult')) . ' ' . $student . ':</p>', true, false,
+            true, false, '');
+
+        // AUTORIZO / NO AUTORIZO, then what is authorised.
+        $y = $pdf->GetY() + 4;
+        $pdf->SetLineStyle(['width' => 0.75, 'dash' => 0, 'color' => letter_pdf::TEXT]);
+        $pdf->SetFont(letter_pdf::FONT, 'B', 8);
+        $x = $left;
+        foreach (['pdfslipyes', 'pdfslipno'] as $key) {
+            $pdf->Rect($x, $y + 1, 8, 8);
+            $pdf->SetXY($x + 12, $y);
+            $text = $str($key);
+            $pdf->Cell($pdf->GetStringWidth($text) + 2, 10, $text, 0, 0, 'L');
+            $x += 12 + $pdf->GetStringWidth($text) + 28;
+        }
+        $pdf->SetFont(letter_pdf::FONT, '', 8);
+        $pdf->SetY($y + 14);
+        $pdf->writeHTML(str_replace('text-align:justify;', 'text-align:left;', (string)$composed['consenthtml']), true,
+            false, true, false, '');
+
+        // The adult's lines, and the slip's own code and QR beside them.
+        $y = $pdf->GetY() + 4;
+        $qr = 46;
+        $lines = $width - $qr - 16;
+        $pdf->SetLineStyle(['width' => 0.5, 'dash' => 0, 'color' => letter_pdf::MUTED]);
+        $pdf->SetFont(letter_pdf::FONT, '', 7);
+        $pdf->SetTextColor(...letter_pdf::MUTED);
+        $rows = [[$str('pdfslipname'), 1.0], [$str('pdfslipidnumber'), 0.55, $str('pdfslipphone'), 0.45],
+            [$str('pdfslipdate'), 0.35, $str('pdfslipsignature'), 0.65]];
+        foreach ($rows as $row) {
+            $x = $left;
+            $y += 18;
+            for ($k = 0; $k < count($row); $k += 2) {
+                $w = $lines * $row[$k + 1];
+                $pdf->SetXY($x, $y - 9);
+                $pdf->Cell($w, 8, $row[$k], 0, 0, 'L', false, '', 1);
+                $labelw = min($pdf->GetStringWidth($row[$k]) + 4, $w / 2);
+                $pdf->Line($x + $labelw, $y, $x + $w - 8, $y);
+                $x += $w;
+            }
+        }
+        if ($slip && $final) {
+            $qx = $left + $width - $qr;
+            $qy = $y - 3 * 18 + 2;
+            $pdf->write2DBarcode(config::verify_url((string)$slip->verifycode), 'QRCODE,M', $qx, $qy, $qr, $qr,
+                ['border' => false, 'padding' => 0, 'fgcolor' => letter_pdf::TEXT, 'bgcolor' => false], 'N');
+            $pdf->SetFont(letter_pdf::FONT, '', 5.5);
+            $pdf->SetXY($qx - 20, $qy + $qr + 2);
+            $pdf->Cell($qr + 20, 7, numbering::format_code((string)$slip->verifycode), 0, 0, 'C', false, '', 1);
+        }
+        $pdf->SetTextColor(...letter_pdf::TEXT);
+        $pdf->SetXY($left, $y + 4);
     }
 
     /**

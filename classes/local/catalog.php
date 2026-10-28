@@ -63,6 +63,7 @@ class catalog {
             'ACTENN' => ['Acta de Entrega de Notas', '2.10', 'ACT', 'legal'],
             'BOL' => ['Boleta de Notas', '15', '', 'administrativo'],
             'CAR' => ['Carta', '17', '', 'legal'],
+            'AUTOR' => ['Autorización', '10', '', 'administrativo'],
             'CIR' => ['Circular', '22', '', 'administrativo'],
             'COMU' => ['Comunicados o comunicación', '31', '', 'administrativo'],
             'CONV' => ['Convenios', '29', '', 'legal'],
@@ -102,6 +103,9 @@ class catalog {
             . "cargo | Cargo del destinatario | text | |\n"
             . "institucion | Institución | text | |\n"
             . "correo | Correo del destinatario | text | |";
+        // Where the consent slip goes back, and by when.
+        $return = "devolver_a | Devolver la colilla a | text | su docente guía | required\n"
+            . "devolver_antes | Devolver antes del | date | | required";
         $letterfields = "$recipient\n"
             . "asunto | Asunto | text | | required\n"
             . "saludo | Saludo | text | Estimado(a) señor(a): | required\n"
@@ -234,17 +238,100 @@ class catalog {
             ],
             'circular' => [
                 'series' => 'CIR', 'name' => 'Circular', 'subject' => 'none', 'source' => 'basic', 'validity' => 0,
-                'title' => 'Circular', 'signers' => ['ISSUER'], 'allowbodyedit' => 1,
+                'title' => 'Circular', 'signers' => ['ISSUER'], 'everyunit' => true, 'allowbodyedit' => 1,
                 'fields' => "destinatario | Dirigida a | text | Padres de familia y personal docente | required\n"
                     . "asunto | Asunto | text | | required\ntexto | Texto | textarea | | required",
                 'body' => "**Asunto:** {{f.asunto}}\n\n{{f.texto}}\n\nAtentamente,",
             ],
             'memorandum' => [
                 'series' => 'MM', 'name' => 'Memorándum', 'subject' => 'none', 'source' => 'basic', 'validity' => 0,
-                'title' => 'Memorándum', 'signers' => ['ISSUER'], 'allowbodyedit' => 1,
+                'title' => 'Memorándum', 'signers' => ['ISSUER'], 'everyunit' => true, 'allowbodyedit' => 1,
                 'fields' => "destinatario | Para | text | | required\ncargo | Cargo | text | |\n"
                     . "asunto | Asunto | text | | required\ntexto | Texto | textarea | | required",
                 'body' => "**De:** {{unit.name}}\n**Asunto:** {{f.asunto}}\n\n{{f.texto}}",
+            ],
+            // Authorisations for families: a letter, and at its foot a consent slip (colilla) per student, each
+            // with its own code (docs/documents-plan.md 15). Any unit issues them, signed by its head.
+            'autorizacion_salida' => [
+                'series' => 'AUTOR', 'name' => 'Autorización de salida o excursión', 'subject' => 'group', 'source' => 'basic',
+                'validity' => 0, 'title' => 'Autorización para salida educativa', 'signers' => ['ISSUER'], 'everyunit' => true,
+                'allowbodyedit' => 1,
+                'fields' => "actividad | Actividad | text | | required\nlugar | Lugar | text | | required\n"
+                    . "fecha | Fecha | date | | required\nhorario | Horario de salida y regreso | text | | required\n"
+                    . "transporte | Transporte | text | | required\ncosto | Costo (opcional) | text | |\n"
+                    . "responsables | Docentes responsables (opcional) | text | |\nllevar | Qué llevar (opcional) | textarea | |\n"
+                    . "$return",
+                'body' => "Estimadas familias:\n\nEl **{{f.fecha}}** realizaremos **{{f.actividad}}** en **{{f.lugar}}**, "
+                    . "como parte de las actividades formativas del año lectivo.\n\n- **Horario:** {{f.horario}}\n"
+                    . "- **Transporte:** {{f.transporte}}\n{{f.costo|- **Costo:** }}\n{{f.responsables|- **A cargo de:** }}"
+                    . "\n\n{{f.llevar|**Qué llevar:** }}\n\nPara participar, cada estudiante necesita la autorización de su "
+                    . "madre, padre o persona responsable legal. Les rogamos completar la colilla al pie y devolverla "
+                    . "firmada a {{f.devolver_a}}{{f.devolver_antes| a más tardar el **|**}}.\n\nAtentamente,",
+                'consent' => "su participación en **{{f.actividad}}** en {{f.lugar}} el {{f.fecha}}, con salida y regreso "
+                    . "{{f.horario}} y traslado en {{f.transporte}}, en las condiciones descritas en esta carta.",
+            ],
+            'autorizacion_imagen' => [
+                'series' => 'AUTOR', 'name' => 'Autorización de toma de datos, fotos y uso de imagen', 'subject' => 'group',
+                'source' => 'basic', 'validity' => 0, 'title' => 'Autorización de toma de datos, fotografías y uso de imagen',
+                'signers' => ['ISSUER'], 'everyunit' => true, 'allowbodyedit' => 1,
+                'fields' => "proposito | Para qué se usan | textarea | documentar y dar a conocer la vida escolar | required\n"
+                    . "medios | Dónde se publican | text | el sitio web, las redes sociales y el anuario del centro | required\n"
+                    . "periodo | Vigencia | text | durante el año lectivo en curso | required\n$return",
+                'body' => "Estimadas familias:\n\nDurante el año lectivo tomamos fotografías y videos de las actividades "
+                    . "escolares, y registramos datos de los estudiantes, para {{f.proposito}}.\n\nAntes de publicar la "
+                    . "imagen de un estudiante en {{f.medios}} necesitamos el consentimiento de su madre, padre o persona "
+                    . "responsable legal. El consentimiento vale {{f.periodo}} y puede retirarse en cualquier momento por "
+                    . "escrito ante la Secretaría.\n\nLes rogamos completar la colilla al pie y devolverla firmada a "
+                    . "{{f.devolver_a}}{{f.devolver_antes| a más tardar el **|**}}.\n\nAtentamente,",
+                'consent' => "que el centro tome fotografías y videos en los que aparezca y los publique en {{f.medios}}, "
+                    . "{{f.periodo}}, para los fines descritos en esta carta.",
+            ],
+            'autorizacion_salud' => [
+                'series' => 'AUTOR', 'name' => 'Autorización de vacunación o jornada de salud', 'subject' => 'group',
+                'source' => 'basic', 'validity' => 0, 'title' => 'Autorización para jornada de salud', 'signers' => ['ISSUER'],
+                'everyunit' => true, 'allowbodyedit' => 1,
+                'fields' => "jornada | Jornada | text | Jornada de vacunación | required\n"
+                    . "atencion | Vacuna o atención | text | | required\ninstitucion | A cargo de | text | la Secretaría de Salud | required\n"
+                    . "fecha | Fecha | date | | required\n$return",
+                'body' => "Estimadas familias:\n\nEl **{{f.fecha}}** se realizará en el centro la **{{f.jornada}}**, a cargo "
+                    . "de {{f.institucion}}: {{f.atencion}}.\n\nSolo se atenderá a los estudiantes que entreguen la "
+                    . "autorización firmada por su madre, padre o persona responsable legal. Si hay alguna alergia o "
+                    . "condición de salud que el personal deba conocer, indíquela en la colilla.\n\nLes rogamos completar "
+                    . "la colilla al pie y devolverla firmada a {{f.devolver_a}}{{f.devolver_antes| a más tardar el **|**}}."
+                    . "\n\nAtentamente,",
+                'consent' => "que reciba {{f.atencion}} en la {{f.jornada}} del {{f.fecha}}, a cargo de {{f.institucion}}."
+                    . "\n\nAlergias o condiciones de salud: ____________________________________________________",
+            ],
+            'autorizacion_expediente' => [
+                'series' => 'AUTOR', 'name' => 'Autorización para compartir el expediente', 'subject' => 'student',
+                'source' => 'basic', 'validity' => 0, 'title' => 'Autorización para compartir el expediente',
+                'signers' => ['ISSUER'], 'everyunit' => true, 'allowbodyedit' => 1,
+                'fields' => "institucion | Institución que lo solicita | text | | required\n"
+                    . "documentos | Documentos que se comparten | textarea | las certificaciones de estudios, la constancia "
+                    . "de conducta y los informes académicos | required\nmotivo | Motivo | text | el traslado del estudiante | required\n"
+                    . "devolver_a | Devolver la colilla a | text | la Secretaría | required\n"
+                    . "devolver_antes | Devolver antes del (opcional) | date | |",
+                'body' => "Estimada familia de **{{holder.name}}**:\n\nPara {{f.motivo}}, el **{{f.institucion}}** nos ha "
+                    . "solicitado el expediente de {{holder.name}}. Solo lo compartiremos con la autorización de su madre, "
+                    . "padre o persona responsable legal.\n\nLos documentos que se compartirían son: {{f.documentos}}.\n\n"
+                    . "Les rogamos completar la colilla al pie y devolverla firmada a {{f.devolver_a}}"
+                    . "{{f.devolver_antes| a más tardar el **|**}}.\n\nAtentamente,",
+                'consent' => "que el **{{school.officialname}}** comparta con el **{{f.institucion}}** los siguientes documentos "
+                    . "de su expediente: {{f.documentos}}, para {{f.motivo}}.",
+            ],
+            'autorizacion_extracurricular' => [
+                'series' => 'AUTOR', 'name' => 'Autorización de actividad extracurricular o deportiva', 'subject' => 'group',
+                'source' => 'basic', 'validity' => 0, 'title' => 'Autorización para actividad extracurricular', 'signers' => ['ISSUER'],
+                'everyunit' => true, 'allowbodyedit' => 1,
+                'fields' => "actividad | Actividad | text | | required\nhorario | Días y horario | text | | required\n"
+                    . "lugar | Lugar | text | | required\ninicio | A partir del | date | | required\n"
+                    . "costo | Costo (opcional) | text | |\n$return",
+                'body' => "Estimadas familias:\n\nA partir del **{{f.inicio}}** ofrecemos **{{f.actividad}}**, {{f.horario}}, "
+                    . "en {{f.lugar}}.{{f.costo| Costo: |.}}\n\nPara inscribirse, cada estudiante necesita la autorización "
+                    . "de su madre, padre o persona responsable legal. Les rogamos completar la colilla al pie y devolverla "
+                    . "firmada a {{f.devolver_a}}{{f.devolver_antes| a más tardar el **|**}}.\n\nAtentamente,",
+                'consent' => "su participación en **{{f.actividad}}**, {{f.horario}}, en {{f.lugar}}, a partir del "
+                    . "{{f.inicio}}, en las condiciones descritas en esta carta.",
             ],
             'convenio' => [
                 'series' => 'CONV', 'name' => 'Convenio', 'subject' => 'none', 'source' => 'basic', 'validity' => 0,
@@ -283,11 +370,13 @@ class catalog {
         }
 
         $sort = 0;
+        $created = [];
         foreach (self::types() as $shortname => $type) {
             $sort += 10;
             if ($DB->record_exists('local_documents_type', ['shortname' => $shortname])) {
                 continue;
             }
+            $created[] = $shortname;
             $typeid = (int)$DB->insert_record('local_documents_type', (object)[
                 'shortname' => $shortname, 'name' => $type['name'], 'seriesid' => $seriesids[$type['series']],
                 'subject' => $type['subject'], 'source' => $type['source'], 'unitcode' => 'DCE',
@@ -301,10 +390,11 @@ class catalog {
                 'body' => $type['body'],
                 'fields' => $type['fields'],
                 'allowbodyedit' => (int)$type['allowbodyedit'],
+                'consent' => $type['consent'] ?? '',
                 'changenote' => 'Plantilla inicial.',
             ], 0);
         }
-        units::install_defaults();
+        units::install_defaults('', $created);
     }
 
     /**
@@ -332,6 +422,7 @@ class catalog {
             }
             $same = trim((string)$current->title) === trim($type['title']) && trim((string)$current->body) === trim($type['body'])
                 && trim((string)$current->fields) === trim($type['fields'])
+                && trim((string)($current->consent ?? '')) === trim($type['consent'] ?? '')
                 && (int)$current->allowbodyedit === (int)$type['allowbodyedit'];
             if ($same) {
                 continue;
@@ -341,6 +432,7 @@ class catalog {
                 'body' => $type['body'],
                 'fields' => $type['fields'],
                 'allowbodyedit' => (int)$type['allowbodyedit'],
+                'consent' => $type['consent'] ?? '',
                 'changenote' => $changenote,
             ], 0);
             $count++;

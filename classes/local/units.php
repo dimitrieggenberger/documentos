@@ -280,8 +280,9 @@ class units {
     }
 
     /**
-     * Open circulars and memorandums to every unit, signed by the issuing unit's head, and add the
-     * Gerencias: decided 2026-10-28 (anyone who heads a unit issues them). Re-runnable.
+     * Open circulars, memorandums and authorisations (the catalogue's `everyunit` types) to every unit,
+     * signed by the issuing unit's head, and add the Gerencias: decided 2026-10-28 (anyone who heads a
+     * unit issues them). Re-runnable.
      *
      * @return void
      */
@@ -292,7 +293,7 @@ class units {
                 self::save((object)['code' => $code, 'name' => $name, 'userid' => 0, 'enabled' => 1]);
             }
         }
-        foreach (['circular', 'memorandum'] as $shortname) {
+        foreach (array_keys(array_filter(catalog::types(), static fn($type) => !empty($type['everyunit']))) as $shortname) {
             $typeid = (int)$DB->get_field('local_documents_type', 'id', ['shortname' => $shortname]);
             if (!$typeid) {
                 continue;
@@ -330,10 +331,27 @@ class units {
      * @param string $legacy the old setting, '' for the three default units
      * @return void
      */
-    public static function install_defaults(string $legacy = ''): void {
+    public static function install_defaults(string $legacy = '', array $created = []): void {
         global $DB;
         if ($DB->record_exists('local_documents_unit', [])) {
             self::open_letters_to_all();
+            // Types the catalogue added since: the signatures it gives them, and the unit that issues them.
+            $types = $DB->get_records_menu('local_documents_type', null, '', 'shortname, id');
+            $catalog = catalog::types();
+            foreach ($created as $shortname) {
+                if (!isset($types[$shortname], $catalog[$shortname])) {
+                    continue;
+                }
+                if (empty($catalog[$shortname]['everyunit']) && ($unit = self::by_code('DCE'))
+                        && !$DB->record_exists('local_documents_unittype', ['unitid' => $unit->id, 'typeid' => $types[$shortname]])) {
+                    $DB->insert_record('local_documents_unittype', (object)['unitid' => $unit->id, 'typeid' => $types[$shortname]]);
+                }
+                if (!$DB->record_exists('local_documents_signer', ['typeid' => $types[$shortname]])) {
+                    self::set_signers((int)$types[$shortname], array_values(array_filter(array_map(
+                        static fn($code) => $code === 'ISSUER' ? -1 : (int)(self::by_code($code)->id ?? 0),
+                        $catalog[$shortname]['signers'] ?? []))));
+                }
+            }
             return;
         }
         $lines = trim($legacy) !== '' ? preg_split('/\R/', $legacy)

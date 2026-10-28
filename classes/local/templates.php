@@ -59,6 +59,7 @@ class templates {
             'fields' => str_replace("\r\n", "\n", trim((string)($data['fields'] ?? ''))),
             'signatories' => 0,
             'allowbodyedit' => empty($data['allowbodyedit']) ? 0 : 1,
+            'consent' => str_replace("\r\n", "\n", trim((string)($data['consent'] ?? ''))),
             'changenote' => trim((string)($data['changenote'] ?? '')),
             'createdby' => $userid,
             'timecreated' => time(),

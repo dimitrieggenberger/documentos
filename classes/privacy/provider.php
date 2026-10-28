@@ -64,6 +64,15 @@ class provider implements
             'timedecided' => 'privacy:metadata:approval:timedecided',
             'ipaddress' => 'privacy:metadata:approval:ipaddress',
         ], 'privacy:metadata:approval');
+        $collection->add_database_table('local_documents_slip', [
+            'userid' => 'privacy:metadata:slip:userid',
+            'holdername' => 'privacy:metadata:slip:holdername',
+            'holderidnumber' => 'privacy:metadata:slip:holderidnumber',
+            'response' => 'privacy:metadata:slip:response',
+            'responsedate' => 'privacy:metadata:slip:responsedate',
+            'note' => 'privacy:metadata:slip:note',
+            'recordedby' => 'privacy:metadata:slip:recordedby',
+        ], 'privacy:metadata:slip');
         $collection->add_database_table('local_documents_unit', [
             'userid' => 'privacy:metadata:unit:userid',
         ], 'privacy:metadata:unit');
@@ -86,7 +95,8 @@ class provider implements
         if ($DB->record_exists_select('local_documents_doc', 'userid = ? OR createdby = ? OR issuedby = ?',
                 [$userid, $userid, $userid]) || $DB->record_exists('local_documents_log', ['userid' => $userid])
                 || $DB->record_exists('local_documents_approval', ['userid' => $userid])
-                || $DB->record_exists('local_documents_unit', ['userid' => $userid])) {
+                || $DB->record_exists('local_documents_unit', ['userid' => $userid])
+                || $DB->record_exists_select('local_documents_slip', 'userid = ? OR recordedby = ?', [$userid, $userid])) {
             $contextlist->add_system_context();
         }
         return $contextlist;
@@ -108,6 +118,8 @@ class provider implements
         $userlist->add_from_sql('userid', 'SELECT userid FROM {local_documents_log} WHERE userid > 0', []);
         $userlist->add_from_sql('userid', 'SELECT userid FROM {local_documents_approval} WHERE userid > 0', []);
         $userlist->add_from_sql('userid', 'SELECT userid FROM {local_documents_unit} WHERE userid > 0', []);
+        $userlist->add_from_sql('userid', 'SELECT userid FROM {local_documents_slip} WHERE userid > 0', []);
+        $userlist->add_from_sql('recordedby', 'SELECT recordedby FROM {local_documents_slip} WHERE recordedby > 0', []);
     }
 
     /**
@@ -135,9 +147,18 @@ class provider implements
                 'issuedate' => $doc->issuedate ? transform::date($doc->issuedate) : '',
             ];
         }
-        if ($docs) {
+        // The authorisations asked of the user's family, and what they answered.
+        $slips = [];
+        foreach ($DB->get_records_sql('SELECT s.*, d.title, d.number FROM {local_documents_slip} s
+                                         JOIN {local_documents_doc} d ON d.id = s.docid
+                                        WHERE s.userid = ? ORDER BY s.id', [$userid]) as $slip) {
+            $slips[] = ['title' => $slip->title, 'number' => $slip->number, 'holdername' => $slip->holdername,
+                'response' => $slip->response, 'responsedate' => $slip->responsedate ? transform::date($slip->responsedate) : '',
+                'note' => (string)$slip->note];
+        }
+        if ($docs || $slips) {
             writer::with_context($context)->export_data([get_string('pluginname', 'local_documents')],
-                (object)['documents' => $docs]);
+                (object)['documents' => $docs, 'authorisations' => $slips]);
         }
     }
 
@@ -152,6 +173,7 @@ class provider implements
         if ($context->contextlevel != CONTEXT_SYSTEM) {
             return;
         }
+        $DB->delete_records_select('local_documents_slip', "docid IN (SELECT id FROM {local_documents_doc} WHERE status = 'draft')");
         $DB->delete_records('local_documents_doc', ['status' => 'draft']);
         $DB->set_field_select('local_documents_log', 'ip', '', 'ip IS NOT NULL');
     }
@@ -165,6 +187,8 @@ class provider implements
     public static function delete_data_for_user(approved_contextlist $contextlist) {
         global $DB;
         $userid = (int)$contextlist->get_user()->id;
+        $DB->delete_records_select('local_documents_slip', "userid = ? AND docid IN (SELECT id FROM {local_documents_doc}
+                                                             WHERE status = 'draft')", [$userid]);
         $DB->delete_records('local_documents_doc', ['status' => 'draft', 'userid' => $userid]);
         $DB->set_field('local_documents_log', 'ip', '', ['userid' => $userid]);
     }
@@ -181,6 +205,8 @@ class provider implements
             return;
         }
         [$insql, $params] = $DB->get_in_or_equal($userlist->get_userids());
+        $DB->delete_records_select('local_documents_slip', "userid $insql AND docid IN (SELECT id FROM {local_documents_doc}
+                                                             WHERE status = 'draft')", $params);
         $DB->delete_records_select('local_documents_doc', "status = 'draft' AND userid $insql", $params);
         $DB->set_field_select('local_documents_log', 'ip', '', "userid $insql", $params);
     }

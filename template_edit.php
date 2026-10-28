@@ -57,6 +57,7 @@ if ($type) {
         'companions' => companions::shortnames((string)$type->companions),
         'enabled' => $type->enabled, 'title' => $current->title ?? '', 'body' => $current->body ?? '',
         'fields' => $current->fields ?? '', 'allowbodyedit' => $current->allowbodyedit ?? 1,
+        'consent' => $current->consent ?? '',
     ] + array_combine(['signer1', 'signer2', 'signer3'], array_pad(array_slice(array_map(
         static fn($slot) => $slot === units::ISSUER ? -1 : $slot, units::signer_slots((int)$type->id)), 0, 3), 3, 0)));
 } else {

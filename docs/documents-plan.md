@@ -370,3 +370,56 @@ school's reading; to confirm with the Dirección Departamental.
 - The verification pages list the companions as the sheet prints them, and
   add when one was recalled or replaced since.
 
+## 15. Authorisations for families: the consent slip
+
+Decided 2026-10-28. A letter that explains what is asked (an excursion, data
+and images, a vaccination day, sharing a student's file with another school,
+an extracurricular activity) and, at its foot, a **consent slip** (colilla)
+to cut off and return signed.
+
+- **Series AUTOR** (TRD 10, Autorización), new; the TRD's subseries are
+  academic (terna, materia retrasada…), none is a family's consent. Five
+  ready-made types (`autorizacion_*`); any unit issues them, signed by its
+  own head (`everyunit`, signature slot "the issuing unit"). They are signed
+  electronically: the letter is the school's; the family signs the slip by
+  hand.
+- **The slip** is fixed by the plugin, its wording neutral about who signs:
+  "Yo, quien firma al pie, en mi calidad de madre, padre o persona
+  responsable legal de **student**, con número de identidad …, de grade:",
+  the boxes AUTORIZO / NO AUTORIZO, then what is authorised (the template's
+  **consent text**, a new part of the template version: `consent`, with the
+  same markup and placeholders), then lines for full name, identity number,
+  phone, date and signature, and the slip's own code and QR. The fields
+  `devolver_a` and `devolver_antes` print where it goes back and by when.
+  Empty consent text: no slip. The slip is left-aligned (a form; TCPDF also
+  loses the space after bold text on a justified line). The letter of an
+  authorisation starts higher on the page (`AFTER_HEADER_COMPACT`) so that
+  letter and slip share one page; a slip that does not fit whole goes to the
+  top of the next page (drawn in a TCPDF transaction and undone if it ran
+  over).
+- **Who it goes to.** A type about one student (sharing the file) carries
+  that student's slip from the start. A type about a group (subject `group`)
+  picks its students on the draft: a whole course, a group of a course (the
+  students enrolled with a student role), or one by one (`slips`, table
+  `local_documents_slip`). Who it goes to is part of what is signed (the
+  fingerprint, section 12). Not issued without students.
+- **One number, a slip each.** The authorisation has one number (AUTOR-…);
+  each student's slip has **its own code**, and at issue **its own PDF**
+  (the letter and that student's slip, one page) with its SHA-256: that is
+  the file to send to that family by WhatsApp or e-mail. The document's own
+  PDF has every student's page, to print for the class.
+- **The answers.** On the record, staff with `local/documents:issue` record
+  each returned slip: authorises, does not, or no answer yet; the date
+  written on it; a note (allergies, who signed); and the slip as scanned or
+  photographed (`response.php`, file area `slipscan`, staff only). Counts at
+  the top, and the list as CSV for the day of the activity.
+- **Verification.** A slip's code answers for the letter it belongs to:
+  "Colilla de autorización · title", the student's name, the masked number,
+  and the fingerprint of that student's PDF. The answer is never public.
+  The letter's own code says how many students it went to.
+- **A correction** (new version) goes to the same students with new slips
+  and codes: the families answer the corrected letter.
+- **Later.** Families answering on the platform (the parents' portal) instead
+  of on paper: an electronic acceptance (Decreto 33-2020, art. 38.C), to
+  check with a lawyer first for consents that touch family law (section 12).
+

@@ -169,7 +169,8 @@ class numbering {
             for ($i = 0; $i < self::CODE_LENGTH; $i++) {
                 $code .= self::ALPHABET[random_int(0, 31)];
             }
-        } while ($DB->record_exists('local_documents_doc', ['verifycode' => $code]));
+        } while ($DB->record_exists('local_documents_doc', ['verifycode' => $code])
+            || $DB->record_exists('local_documents_slip', ['verifycode' => $code]));
         return $code;
     }
 
