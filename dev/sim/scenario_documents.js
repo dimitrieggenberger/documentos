@@ -71,11 +71,15 @@ const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (
   await d.goto(L + 'sign.php');
   check(await d.locator('.local-documents-task').count() >= 1, 'sign: the document waits for the director');
   await shot(d, 'documents-tosign');
-  await Promise.all([d.waitForNavigation(), d.locator('.local-documents-task:has-text("Valentina") a').first().click()]);
+  const sentid = new URL(recordurl).searchParams.get('id');
+  check(await d.locator(`.local-documents-task a[href*="sign.php?id=${sentid}"]`).count() === 1, 'sign: this document is in the queue');
+  await Promise.all([d.waitForNavigation(), d.locator(`.local-documents-task a[href*="sign.php?id=${sentid}"]`).click()]);
   check(await d.locator('#ld-approve').count() === 1 && await d.locator('#ld-reject').count() === 1, 'sign: approve or send back');
   await shot(d, 'documents-sign');
   await Promise.all([d.waitForNavigation(), d.click('#ld-approve')]);
-  check(/(emitido como|issued as) CONSES-\d{3}/i.test(await d.locator('body').innerText()), 'sign: the last signature issues');
+  // Space shows the redirect message after the page loads: wait for it.
+  check(await d.waitForFunction(() => /(emitido como|issued as) CONSES-\d{3}/i.test(document.body.innerText), null,
+    { timeout: 8000 }).then(() => true).catch(() => false), 'sign: the last signature issues');
 
   await p.goto(recordurl);
   const number = (await p.locator('.local-documents-record .local-documents-number').innerText()).trim();
