@@ -166,14 +166,23 @@ if ($composed['signers']) {
     $st = new html_table();
     $st->attributes['class'] = 'generaltable';
     $st->head = [get_string('unit', 'local_documents'), get_string('signer', 'local_documents', ''),
-        get_string('status', 'local_documents')];
+        get_string('status', 'local_documents'), get_string('signatureevidence', 'local_documents')];
+    $evidence = [];
+    foreach ($DB->get_records('local_documents_approval', ['docid' => $id, 'status' => 'approved']) as $approval) {
+        $evidence[(int)$approval->unitid] = $approval;
+    }
     foreach ($composed['signers'] as $signer) {
+        $proof = $evidence[(int)$signer['unitid']] ?? null;
         $st->data[] = [s($signer['unitcode'] . ' — ' . $signer['unitname']), s(trim($signer['name'] . ', '
             . (!empty($signer['substitutefor']) ? get_string('substitutefor', 'local_documents', $signer['substitutefor'])
                 : $signer['title']), ', ')), !empty($signer['approvedon'])
             ? html_writer::span(get_string('approvedon', 'local_documents', userdate((int)$signer['approvedon'],
                 get_string('strftimedatetimeshort', 'langconfig'))), 'badge badge-success bg-success')
-            : html_writer::span(get_string('signaturepending', 'local_documents'), 'badge badge-warning bg-warning text-dark')];
+            : html_writer::span(get_string('signaturepending', 'local_documents'), 'badge badge-warning bg-warning text-dark'),
+            $proof && (string)$proof->contenthash !== '' ? html_writer::div(get_string('evidenceip', 'local_documents',
+                s((string)$proof->ipaddress ?: '—')), 'small') . html_writer::div(get_string('evidencehash', 'local_documents',
+                html_writer::tag('code', s(substr((string)$proof->contenthash, 0, 16)) . '…',
+                ['title' => s((string)$proof->contenthash)])), 'small text-muted') : ''];
     }
     echo html_writer::tag('h3', get_string('signatures', 'local_documents'), ['class' => 'h5 mt-4']);
     echo html_writer::table($st);

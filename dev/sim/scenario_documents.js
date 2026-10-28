@@ -87,7 +87,8 @@ const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (
   const code = (await p.locator('.local-documents-record code').first().innerText()).trim();
   check(/^[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}$/.test(code), 'issue: verification code ' + code);
   check(await p.locator('a:has-text("Recall"), a:has-text("Anular")').count() === 0, 'secretary: no recall button');
-  check(/Aprobado el|Approved/.test(await p.locator('body').innerText()), 'record: the signature with its date');
+  check(/Firmado electrónicamente el|Signed electronically/.test(await p.locator('body').innerText()), 'record: the signature with its date');
+  check(/(Desde|From) [0-9a-f.:]+/.test(await p.locator('body').innerText()), 'record: the evidence of the signature');
   await shot(p, 'documents-record');
 
   // The public: the verification page without a login, and the JSON.
@@ -95,6 +96,7 @@ const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (
   await pub.goto(L + 'verify.php?c=' + code.toLowerCase().replace(/-/g, ' '));
   check(/valid|válido/i.test(await pub.locator('.local-documents-verify-result').innerText()), 'public: valid');
   check(!/0501-2010-\d{5}/.test(await pub.locator('.local-documents-verify-result').innerText()), 'public: identity number masked');
+  check(/Decreto 149-2013/.test(await pub.locator('.local-documents-verify-result').innerText()), 'public: the law the signatures were given under');
   await shot(pub, 'documents-verify-valid');
   const api = await pub.request.get(L + 'verify_api.php?c=' + code);
   const json = await api.json();

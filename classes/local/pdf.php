@@ -161,13 +161,19 @@ class pdf {
         $x = letter_pdf::MARGIN_X;
         $bottom = $top;
         foreach ($signers as $signer) {
-            // The room to sign by hand carries the digital approval, at the foot of it.
+            // The room to sign by hand carries the electronic signature, at the foot of it: "Firmado
+            // electrónicamente" and, under it, the date and time it was given.
             $approved = (int)($signer['approvedon'] ?? 0);
             $pdf->SetTextColor(...letter_pdf::MUTED);
             $pdf->SetFont(letter_pdf::FONT, 'I', 6);
+            if ($approved > 0) {
+                $pdf->SetXY($x, $top + letter_pdf::SIGN_H - 16.5);
+                $pdf->Cell(letter_pdf::SIGNER_W, 7.5, $sm->get_string('pdfsigned', 'local_documents', null, 'es'), 0, 0, 'L',
+                    false, '', 1);
+            }
             $pdf->SetXY($x, $top + letter_pdf::SIGN_H - 9);
             $pdf->Cell(letter_pdf::SIGNER_W, 7.5, $approved > 0
-                ? $sm->get_string('pdfapproved', 'local_documents', spanish::date_long($approved), 'es')
+                ? $sm->get_string('pdfapproved', 'local_documents', spanish::date_time($approved), 'es')
                 : $sm->get_string('pdfsignpending', 'local_documents', null, 'es'), 0, 0, 'L', false, '', 1);
             $y = $top + letter_pdf::SIGN_H;
             $pdf->SetXY($x, $y);
@@ -282,6 +288,9 @@ class pdf {
             if ((int)$doc->validuntil > 0) {
                 $lines[] = $sm->get_string('pdfvaliduntil', 'local_documents', spanish::date_long((int)$doc->validuntil),
                     'es');
+            }
+            if (!empty($composed['signaturelaw'])) {
+                $lines[] = (string)$composed['signaturelaw'];
             }
         } else {
             $lines[] = $sm->get_string('pdfdraftnote', 'local_documents', null, 'es');

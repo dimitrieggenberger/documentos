@@ -201,7 +201,7 @@ class letter_pdf extends \pdf {
         }
         $lines = $sheet['strings']['footerlines'];
         $lines[] = sprintf($sheet['strings']['page'], $this->getAliasNumPage(), $this->getAliasNbPages());
-        $width = 260;
+        $width = 300;
         $this->SetTextColor(...self::MUTED);
         $this->SetFont(self::FONT, '', 6);
         $this->setCellHeightRatio(1.25);

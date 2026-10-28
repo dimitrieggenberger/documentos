@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Verificación de documentos (EuropaSchule)
  * Description: Página pública para verificar los documentos oficiales emitidos en la plataforma escolar (Moodle, local_documents): el código QR de cada constancia o certificación abre esta página. Shortcode: [es_verificacion].
- * Version: 0.3.0
+ * Version: 0.4.0
  * Requires at least: 6.0
  * Requires PHP: 8.1
  * Author: Educación Helvética SA / EuropaSchule
@@ -129,8 +129,8 @@ function es_verificacion_icon(string $tone): string {
  * @return string
  */
 function es_verificacion_shortcode(): string {
-    wp_enqueue_style('es-verificacion', plugins_url('es-verificacion.css', __FILE__), [], '0.3.0');
-    wp_enqueue_script('es-verificacion', plugins_url('es-verificacion.js', __FILE__), [], '0.3.0', true);
+    wp_enqueue_style('es-verificacion', plugins_url('es-verificacion.css', __FILE__), [], '0.4.0');
+    wp_enqueue_script('es-verificacion', plugins_url('es-verificacion.js', __FILE__), [], '0.4.0', true);
 
     $code = isset($_GET['c']) ? es_verificacion_clean_code(sanitize_text_field(wp_unslash($_GET['c']))) : '';
     $display = $code !== '' ? implode('-', str_split($code, 4)) : '';
@@ -177,6 +177,10 @@ function es_verificacion_shortcode(): string {
                 }
             }
             $html .= '</dl>';
+            // Electronically signed: the law it was signed under, as the document's footer cites it.
+            if (!empty($result['legal'])) {
+                $html .= '<p class="es-verif__legal">' . esc_html((string)$result['legal']) . '</p>';
+            }
             // The attachments are part of the document: their names and hashes are printed in its index.
             $files = [];
             if (!empty($result['sha256']) && preg_match('/^[0-9a-f]{64}$/', (string)$result['sha256'])) {

@@ -6,6 +6,7 @@
 .es-verif__row button { padding: 8px 20px; border: 0; border-radius: 10px; background: #003f5c; color: #fff;
     font-weight: 600; cursor: pointer; }
 .es-verif__hint { color: #5c6670; font-size: 13px; margin: 8px 0; }
+.es-verif__legal { color: #5c6670; font-size: 13px; margin: 12px 0 0; }
 .es-verif__result { margin: 24px 0; padding: 16px 20px; border-radius: 14px; border: 1px solid #e3e8ef;
     box-shadow: 0 1px 2px rgba(16, 42, 67, .06), 0 4px 16px rgba(16, 42, 67, .06); background: #fff; }
 .es-verif__result h2 { display: flex; align-items: center; gap: 10px; font-size: 20px; margin: 0 0 16px; }

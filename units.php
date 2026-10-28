@@ -69,6 +69,12 @@ if ($id >= 0) {
 ui::setup($url, get_string('units', 'local_documents'), 'units');
 echo ui::header(get_string('units', 'local_documents'));
 echo html_writer::tag('p', get_string('unitsintro', 'local_documents'), ['class' => 'text-muted']);
+// Art. 8 of the Ley sobre Firmas Electrónicas: the means of signing under the signer's sole control. A second
+// factor on the accounts that sign is what makes a password alone not enough (docs/documents-plan.md 12).
+if (!get_config('tool_mfa', 'enabled')) {
+    echo $OUTPUT->notification(get_string('mfarecommended', 'local_documents', (new moodle_url('/admin/settings.php',
+        ['section' => 'managemfa']))->out()), \core\output\notification::NOTIFY_WARNING);
+}
 echo html_writer::div(html_writer::link(new moodle_url($url, ['id' => 0]), get_string('newunit', 'local_documents'),
     ['class' => 'btn btn-primary']), 'mb-3');
 

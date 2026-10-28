@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.0] - 2026-10-28
+
+### Added
+
+- **Electronic signatures under the Ley sobre Firmas Electrónicas** (Decreto 149-2013, reformed by Decreto 33-2020; review in `docs/documents-plan.md` 12). Documents signed on the platform print in the footer "Firmado electrónicamente conforme a la Ley sobre Firmas Electrónicas (Decreto 149-2013)." (setting "Legal basis of the electronic signatures", frozen at issue, empty prints nothing); the verification pages repeat it and say what the platform keeps of each signature.
+- **Evidence of each signature**: the address it was given from and the SHA-256 of exactly what was signed (upgrade 2026103100). Issuing refuses a document that changed after it was signed. The record shows the evidence to staff.
+- A recommendation on the units page to turn on multi-factor authentication for those who sign, while it is off.
+
+### Changed
+
+- The room to sign reads "Firmado electrónicamente" with the date and time (was "Aprobado digitalmente el" with the date); the verification line likewise.
+- WordPress plugin `es-verificacion` 0.4.0: shows the legal sentence under the facts.
+
 ## [0.4.0] - 2026-10-28
 
 ### Added

@@ -99,6 +99,7 @@ if ($result !== null) {
                 . html_writer::tag('dd', html_writer::alist($items, [], 'ol'));
         }
         $html .= html_writer::tag('dl', $dl, ['class' => 'local-documents-verify-facts'])
+            . ($result['legal'] !== '' ? html_writer::tag('p', s($result['legal']), ['class' => 'small']) : '')
             . html_writer::tag('p', get_string('verifysha', 'local_documents') . ' '
                 . html_writer::tag('code', s($result['sha256']), ['class' => 'text-break']), ['class' => 'small']);
     }

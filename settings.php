@@ -73,6 +73,8 @@ if ($hassiteconfig) {
         get_string('verifyurl_desc', 'local_documents'), 'https://europaschule.eu/verificar/', PARAM_URL));
     $settings->add(new admin_setting_configpasswordunmask('local_documents/verifytoken',
         get_string('verifytoken', 'local_documents'), get_string('verifytoken_desc', 'local_documents'), ''));
+    $settings->add(new admin_setting_configtext('local_documents/signaturelaw', get_string('signaturelaw', 'local_documents'),
+        get_string('signaturelaw_desc', 'local_documents'), \local_documents\local\config::SIGNATURE_LAW, PARAM_TEXT, 90));
 
     $settings->add(new admin_setting_heading('local_documents/fieldsheading', get_string('settingfields', 'local_documents'),
         get_string('settingfields_desc', 'local_documents')));

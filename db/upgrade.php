@@ -138,5 +138,17 @@ function xmldb_local_documents_upgrade($oldversion) {
             . '«De:» es la unidad emisora.');
         upgrade_plugin_savepoint(true, 2026103000, 'local', 'documents');
     }
+
+    if ($oldversion < 2026103100) {
+        // The evidence of each electronic signature: where it was given from, and what exactly was signed.
+        $table = new xmldb_table('local_documents_approval');
+        foreach ([new xmldb_field('ipaddress', XMLDB_TYPE_CHAR, '45', null, null, null, null, 'timedecided'),
+                new xmldb_field('contenthash', XMLDB_TYPE_CHAR, '64', null, null, null, null, 'ipaddress')] as $field) {
+            if (!$dbman->field_exists($table, $field)) {
+                $dbman->add_field($table, $field);
+            }
+        }
+        upgrade_plugin_savepoint(true, 2026103100, 'local', 'documents');
+    }
     return true;
 }

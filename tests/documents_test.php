@@ -196,7 +196,60 @@ final class documents_test extends \advanced_testcase {
         $this->assertSame((int)$secretary->id, (int)$doc->issuedby);
         $frozen = documents::data($doc)['frozen'];
         $this->assertGreaterThan(0, $frozen['signers'][0]['approvedon']);
-        $this->assertStringContainsString('aprobado el', verify::lookup($doc->verifycode)['signers'][0]);
+        $answer = verify::lookup($doc->verifycode);
+        $this->assertStringContainsString('firmado electrónicamente el', $answer['signers'][0]);
+        $this->assertStringContainsString('Decreto 149-2013', $answer['legal'], 'the law the signatures were given under');
+        $this->assertStringContainsString('Decreto 149-2013', $frozen['signaturelaw'], 'frozen for the footer');
+    }
+
+    public function test_the_signature_keeps_its_evidence_and_what_was_signed_is_what_is_issued(): void {
+        global $DB;
+        $this->setup_school();
+        $secretary = $this->getDataGenerator()->create_user();
+        $director = $this->getDataGenerator()->create_user();
+        $this->head('DCE', (int)$director->id);
+        $this->redirectMessages();
+        $id = $this->oficio((int)$secretary->id);
+        documents::submit($id, (int)$secretary->id);
+        $doc = documents::get($id)['doc'];
+        $fingerprint = documents::fingerprint($doc);
+
+        // Someone changes the locked document behind the platform's back: the signature no longer covers it.
+        $data = documents::data($doc);
+        $data['fields']['texto'] = 'Otro texto.';
+        $DB->set_field('local_documents_doc', 'data', json_encode($data), ['id' => $id]);
+        $DB->set_field('local_documents_approval', 'contenthash', $fingerprint, ['docid' => $id]);
+        $DB->set_field('local_documents_approval', 'status', 'approved', ['docid' => $id]);
+        try {
+            documents::issue($id, (int)$secretary->id);
+            $this->fail('a changed document is not issued');
+        } catch (\moodle_exception $e) {
+            $this->assertSame('signedcontentchanged', $e->errorcode);
+        }
+
+        // Put back, signed for real: the approval keeps the fingerprint of exactly what is issued.
+        $DB->set_field('local_documents_doc', 'data', $doc->data, ['id' => $id]);
+        $DB->set_field('local_documents_approval', 'status', 'pending', ['docid' => $id]);
+        $this->assertTrue(documents::approve($id, (int)$director->id));
+        $approval = $DB->get_record('local_documents_approval', ['docid' => $id]);
+        $this->assertSame($fingerprint, $approval->contenthash);
+        $this->assertNotSame('', $approval->ipaddress);
+    }
+
+    public function test_without_signatures_or_with_the_setting_empty_no_law_is_cited(): void {
+        global $USER;
+        $typeid = $this->setup_school();
+        $id = $this->draft($typeid);
+        documents::submit($id, (int)$USER->id);
+        $doc = documents::get($id)['doc'];
+        $this->assertSame('', verify::lookup($doc->verifycode)['legal'], 'nothing was signed');
+
+        set_config('signaturelaw', '', 'local_documents');
+        $director = $this->getDataGenerator()->create_user();
+        $this->head('DCE', (int)$director->id);
+        $oficio = $this->oficio((int)$director->id);
+        documents::submit($oficio, (int)$director->id);
+        $this->assertSame('', verify::lookup(documents::get($oficio)['doc']->verifycode)['legal']);
     }
 
     public function test_the_sole_signer_issues_alone(): void {

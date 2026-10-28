@@ -287,6 +287,7 @@ class documents {
             throw new \moodle_exception('cannotsubmit', 'local_documents', '', implode(' ', $problems));
         }
         $now = time();
+        $fingerprint = self::fingerprint($doc);
         $transaction = $DB->start_delegated_transaction();
         $DB->delete_records('local_documents_approval', ['docid' => $id]);
         $waiting = [];
@@ -296,7 +297,8 @@ class documents {
             $own = $signer['userid'] === $userid;
             $DB->insert_record('local_documents_approval', (object)['docid' => $id, 'unitid' => $unit->id,
                 'userid' => $signer['userid'], 'onbehalfof' => $signer['onbehalfof'], 'sortorder' => $i,
-                'status' => $own ? 'approved' : 'pending', 'timerequested' => $now, 'timedecided' => $own ? $now : 0]);
+                'status' => $own ? 'approved' : 'pending', 'timerequested' => $now, 'timedecided' => $own ? $now : 0,
+                'ipaddress' => $own ? getremoteaddr() : null, 'contenthash' => $own ? $fingerprint : null]);
             if ($own) {
                 self::log($id, 'approved', $userid, $unit->code);
             } else {
@@ -334,11 +336,15 @@ class documents {
             throw new \moodle_exception('nothingtosign', 'local_documents');
         }
         $now = time();
+        // The evidence of the signature (docs/documents-plan.md 12): who, when, from where, and the content signed.
+        $fingerprint = self::fingerprint($doc);
+        $ip = getremoteaddr();
         foreach ($mine as $approval) {
             // Whoever signs is recorded, with the head they substitute when it is not the head.
             $headid = (int)$DB->get_field('local_documents_unit', 'userid', ['id' => $approval->unitid]);
             $DB->update_record('local_documents_approval', (object)['id' => $approval->id, 'status' => 'approved',
-                'userid' => $userid, 'onbehalfof' => $userid === $headid ? 0 : $headid, 'timedecided' => $now]);
+                'userid' => $userid, 'onbehalfof' => $userid === $headid ? 0 : $headid, 'timedecided' => $now,
+                'ipaddress' => $ip, 'contenthash' => $fingerprint]);
             self::log($id, 'approved', $userid, (string)$DB->get_field('local_documents_unit', 'code',
                 ['id' => $approval->unitid]));
         }
@@ -435,6 +441,14 @@ class documents {
         if ($open > 0 || ($required > 0 && $given === 0)) {
             throw new \moodle_exception('signaturesmissing', 'local_documents');
         }
+        // What is issued is exactly what was signed.
+        $fingerprint = self::fingerprint($doc);
+        foreach ($DB->get_fieldset_select('local_documents_approval', 'contenthash',
+                "docid = ? AND status = 'approved' AND contenthash IS NOT NULL", [$id]) as $signed) {
+            if ($signed !== $fingerprint) {
+                throw new \moodle_exception('signedcontentchanged', 'local_documents');
+            }
+        }
         $composed = self::compose($bundle);
         if ($problems = self::problems($bundle, $composed)) {
             throw new \moodle_exception('cannotsubmit', 'local_documents', '', implode(' ', $problems));
@@ -479,6 +493,8 @@ class documents {
                 'units' => config::units(),
                 'previousissued' => $previous ? (int)$previous->timeissued : 0,
                 'previousdate' => $previous ? (int)$previous->issuedate : 0,
+                // The law the electronic signatures were given under, as the footer prints it.
+                'signaturelaw' => $composed['signers'] ? config::signature_law() : '',
             ];
             $doc->status = self::STATUS_ISSUED;
             $doc->number = $number;
@@ -621,6 +637,22 @@ class documents {
         $files = $fs->get_area_files(\context_system::instance()->id, 'local_documents', self::FILEAREA, $doc->id,
             'id', false);
         return $files ? reset($files) : null;
+    }
+
+    /**
+     * The SHA-256 of what a signer approves: the type and template version, the issuing unit, the holder,
+     * the title, every value and the text of the draft, and the attachments. The document is locked while
+     * it waits, so the issued document must have the same fingerprint as every signature given on it.
+     *
+     * @param \stdClass $doc
+     * @return string
+     */
+    public static function fingerprint(\stdClass $doc): string {
+        $data = self::data($doc);
+        unset($data['submittedby'], $data['frozen'], $data['signerssnapshot']);
+        return hash('sha256', json_encode([(int)$doc->typeid, (int)$doc->tplverid, (string)$doc->unitcode,
+            (string)$doc->holdername, (string)$doc->holderidnumber, (string)$doc->title, $data,
+            array_column(self::attachments($doc), 'sha256')]));
     }
 
     /**

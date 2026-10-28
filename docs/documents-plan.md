@@ -173,8 +173,10 @@ JD.
   issues it: number, frozen text, PDF. A signer can **send it back** with a
   note (the draft opens again, every signature given is dropped); the sender
   can take it back to change it.
-- The sheet prints, in each signer's room to sign, "Aprobado digitalmente el
-  …"; the verification page says who signed and when.
+- The sheet prints, in each signer's room to sign, "Firmado electrónicamente"
+  with the date and time; the verification page says who signed and when.
+  Each approval keeps its evidence: the address it came from and the
+  fingerprint of what was signed (section 12).
 - A new head of a unit takes over the signatures still waiting on it.
 - **Substitution** (decided 2026-10-28): on the unit, a Moodle user who signs
   *en sustitución de funciones* of the head, with an optional first and last
@@ -239,7 +241,78 @@ where placeholders apply); it only writes those marks, and the field works
 without JavaScript. The live preview beside the draft and the PDF preview show
 the result. No colours, sizes or fonts, by design.
 
-## 12. Later
+## 12. Electronic signature and the law
+
+Reviewed 2026-10-28 against the **Ley sobre Firmas Electrónicas**, Decreto
+149-2013 (La Gaceta 33,301, 11 December 2013), as reformed by Decreto 33-2020,
+art. 38 (La Gaceta 35,217, 3 April 2020). Regulation: Acuerdo Ejecutivo
+41-2014. Not legal advice: a lawyer should confirm the points marked below.
+
+**What the platform's signature is.** An approval on `sign.php` is a
+*firma electrónica* in the sense of art. 3.1: data associated with the
+document that identify the signer (their own Moodle account) and show their
+will about its content (the explicit "Approve and sign"). It is **not** a
+*firma electrónica avanzada* (art. 3.2): that one needs a certificate from a
+provider accredited by the Dirección General de Propiedad Intelectual of the
+Instituto de la Propiedad (art. 24; for example the Banco Central de Honduras
+or Honducert).
+
+**Why that is enough for the school's documents.**
+
+- Art. 6: acts signed electronically by natural or legal persons are valid
+  as if written on paper, and "la firma electrónica, cualquiera sea su
+  naturaleza, se tendrá como firma manuscrita para todos los efectos
+  legales". Exceptions: acts needing a solemnity that a document in
+  electronic form cannot meet, and acts of family law.
+- Art. 8 makes a signature reliable when the method identifies the signer
+  and shows their will, and is as reliable as its purpose requires. How the
+  platform meets each element it lists:
+  1. creation data exclusive to the signer: a personal account; nobody signs
+     for a unit but its head or the substitute named for it (section 9);
+  2. verifiable: the code and QR open the public verification page, which
+     names each signer with the date and time;
+  3. under the signer's sole control at the time of signing: password, plus
+     multi-factor authentication when the site turns it on (`tool_mfa`;
+     `units.php` recommends it until it is on). This is the weakest point
+     without it;
+  4. and 5. any later change is detectable and invalidates the signature:
+     each approval keeps the SHA-256 of exactly what was signed
+     (`documents::fingerprint()`: type, template version, unit, holder, title,
+     every value and text, attachments), issuing refuses a document whose
+     fingerprint differs (`signedcontentchanged`), and the issued PDF's
+     SHA-256 is published on the verification page, where anyone can check
+     their copy;
+  6. the approval also keeps the address it was given from (evidence).
+- Art. 7 (as reformed) only requires an advanced signature for documents
+  with the quality of **instrumento público**; others keep the probative
+  value of the general rules. Art. 38.C of Decreto 33-2020 adds that consent
+  is proven, among others, by the electronic acceptance of standard
+  documents.
+
+**What the documents say.** Issued documents signed on the platform print,
+in the footer, "Firmado electrónicamente conforme a la Ley sobre Firmas
+Electrónicas (Decreto 149-2013)." (setting `signaturelaw`, frozen at issue;
+empty prints nothing), and each signer's room to sign reads "Firmado
+electrónicamente" with the date and time. The verification pages (Moodle and
+the website's plugin) repeat the sentence and say what the platform keeps of
+each signature. A document issued without signatures cites nothing. The
+document never claims an *advanced* signature.
+
+**To confirm with a lawyer.**
+
+- Whether a *certificación* (studies, grades) counts as an instrumento
+  público, and what SEDUC or an embassy accepts: those may still need the
+  handwritten signature and the seal, or an advanced signature.
+- Consents of families (section 13): art. 6 excludes acts of family law;
+  a school trip consent is probably not one, but sharing a student's file
+  should be checked.
+
+**Next step, optional.** A certificate for the school from an accredited
+provider would let the PDF itself carry the institution's advanced
+signature (PAdES, shown as signed and unaltered by PDF readers), on top of
+the platform's evidence.
+
+## 13. Later
 
 - Signature and seal images per signer (today the approval date stands in
   the room to sign).

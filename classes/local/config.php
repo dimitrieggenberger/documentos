@@ -44,6 +44,23 @@ class config {
         return $value === false || $value === null || trim((string)$value) === '' ? $default : trim((string)$value);
     }
 
+    /**
+     * @var string The footer's reference to the law under which the platform's signatures are given
+     * (docs/documents-plan.md 12): Ley sobre Firmas Electrónicas, Decreto 149-2013, arts. 3, 6 and 8.
+     */
+    const SIGNATURE_LAW = 'Firmado electrónicamente conforme a la Ley sobre Firmas Electrónicas (Decreto 149-2013).';
+
+    /**
+     * The sentence the footer and the verification page print for electronically signed documents: the
+     * setting as the administrator left it ('' prints nothing), else SIGNATURE_LAW.
+     *
+     * @return string
+     */
+    public static function signature_law(): string {
+        $value = get_config('local_documents', 'signaturelaw');
+        return $value === false || $value === null ? self::SIGNATURE_LAW : trim((string)$value);
+    }
+
     /** @var string[] The school's names and code until the settings say otherwise. */
     const SCHOOL_DEFAULTS = [
         'schoolname' => 'EuropaSchule San Pedro Sula',

@@ -83,6 +83,19 @@ class spanish {
     }
 
     /**
+     * "27 de octubre de 2026, 14:05 h": when an electronic signature was given.
+     *
+     * @param int $time
+     * @param string $timezone
+     * @return string
+     */
+    public static function date_time(int $time, string $timezone = '99'): string {
+        $date = new \DateTime('@' . $time);
+        $date->setTimezone(\core_date::get_user_timezone_object($timezone === '99' ? \core_date::get_server_timezone() : $timezone));
+        return self::date_long($time, $timezone) . ', ' . $date->format('H:i') . ' h';
+    }
+
+    /**
      * "a los veintisiete días del mes de octubre del año dos mil veintiséis".
      *
      * @param int $time

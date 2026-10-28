@@ -62,6 +62,7 @@ class provider implements
         $collection->add_database_table('local_documents_approval', [
             'userid' => 'privacy:metadata:approval:userid',
             'timedecided' => 'privacy:metadata:approval:timedecided',
+            'ipaddress' => 'privacy:metadata:approval:ipaddress',
         ], 'privacy:metadata:approval');
         $collection->add_database_table('local_documents_unit', [
             'userid' => 'privacy:metadata:unit:userid',
