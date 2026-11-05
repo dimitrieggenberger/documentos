@@ -23,14 +23,16 @@ require_once($CFG->libdir . '/pdflib.php');
 
 /**
  * The letter-size sheet of the brand manual: seal, school and department in
- * the header, the pale seal behind the page, europaschule.eu and the page in
- * the footer.
+ * the header, the pale seal behind the page; in the footer the verification
+ * QR and lines on the left and europaschule.eu on the right.
  *
  * Every measure is in points and comes from the Figma frame "Letter"
  * (EuropaSchule · Design Sandbox, node 109:508): US Letter 612 × 792 pt,
  * margins 1.5 cm top and bottom (42.5 pt) and 3 cm left and right (85 pt),
  * Poppins throughout. Matching a later change of the frame is a change of
- * these constants.
+ * these constants. The footer and the signed badge follow the Figma
+ * components Documento/Pie ("Izquierda (elegida)") and Documento/Sello de
+ * firma electrónica ("A · Insignia", "Ligero"), chosen on 2026-11-05.
  *
  * @package   local_documents
  * @copyright Educación Helvética SA / EuropaSchule
@@ -86,12 +88,28 @@ class letter_pdf extends \pdf {
     const WATERMARK_TOP = 229;
     /** @var float Opacity of the watermark (5 %). */
     const WATERMARK_ALPHA = 0.05;
-    /** @var float europaschule.eu, bottom left. */
+    /** @var float europaschule.eu, bottom right. */
     const URL_W = 92;
     /** @var float */
     const URL_H = 15.935;
-    /** @var float The verification QR code, bottom right. */
+    /** @var float The verification QR code, bottom left. */
     const QR = 40;
+    /** @var float Gap between the QR, the verification lines and europaschule.eu. */
+    const FOOTER_GAP = 8;
+    /** @var float The signed badge: its height (a pill, fully rounded). */
+    const BADGE_H = 13.5;
+    /** @var float The badge's shield icon. */
+    const BADGE_ICON = 7.5;
+    /** @var float Room left of the icon. */
+    const BADGE_PAD_L = 5;
+    /** @var float Room right of the text. */
+    const BADGE_PAD_R = 7;
+    /** @var float Gap between the icon and the text. */
+    const BADGE_GAP = 4;
+    /** @var float The badge's text size. */
+    const BADGE_FONT = 5.75;
+    /** @var int[] The badge's hairline outline, #ccd1d6. */
+    const BADGE_RULE = [204, 209, 214];
     /** @var float The footer's height: the body stops above it. */
     const FOOTER_H = 52;
     /** @var string The brand font, converted for TCPDF in fonts/. */
@@ -182,39 +200,82 @@ class letter_pdf extends \pdf {
     }
 
     /**
-     * europaschule.eu at the bottom left; the verification and the page at the bottom right.
+     * The verification QR at the bottom left, the verification lines and the page beside it,
+     * europaschule.eu at the bottom right.
      *
      * @return void
      */
     public function Footer() { // phpcs:ignore moodle.NamingConventions.ValidFunctionName.LowercaseMethod
         $sheet = $this->sheet;
         $bottom = self::PAGE_H - self::MARGIN_Y;
+        $left = self::MARGIN_X;
+        $right = self::PAGE_W - self::MARGIN_X;
 
         if (!empty($sheet['images']['url'])) {
-            $this->Image($sheet['images']['url'], self::MARGIN_X, $bottom - self::URL_H, self::URL_W, self::URL_H, '', '',
-                '', false, 300, '', false, false, 0, false, false, false);
+            $this->Image($sheet['images']['url'], $right - self::URL_W, $bottom - self::URL_H, self::URL_W, self::URL_H, '',
+                '', '', false, 300, '', false, false, 0, false, false, false);
         }
 
-        $right = self::PAGE_W - self::MARGIN_X;
         if (!empty($sheet['final'])) {
-            $this->write2DBarcode($sheet['verifyurl'], 'QRCODE,M', $right - self::QR, $bottom - self::QR, self::QR, self::QR,
+            $this->write2DBarcode($sheet['verifyurl'], 'QRCODE,M', $left, $bottom - self::QR, self::QR, self::QR,
                 ['border' => false, 'padding' => 0, 'fgcolor' => self::TEXT, 'bgcolor' => false], 'N');
-            $right -= self::QR + 8;
+            $left += self::QR + self::FOOTER_GAP;
         }
         $lines = $sheet['strings']['footerlines'];
         $lines[] = sprintf($sheet['strings']['page'], $this->getAliasNumPage(), $this->getAliasNbPages());
-        $width = 300;
+        $width = $right - self::URL_W - 2 * self::FOOTER_GAP - $left;
         $this->SetTextColor(...self::MUTED);
         $this->SetFont(self::FONT, '', 6);
         $this->setCellHeightRatio(1.25);
         $y = $bottom - count($lines) * 7.5;
         foreach ($lines as $i => $line) {
             $this->SetFont(self::FONT, $i === 0 && !empty($sheet['final']) ? 'B' : '', 6);
-            $this->SetXY($right - $width, $y);
-            $this->Cell($width, 7.5, $line, 0, 0, 'R', false, '', 1);
+            $this->SetXY($left, $y);
+            $this->Cell($width, 7.5, $line, 0, 0, 'L', false, '', 1);
             $y += 7.5;
         }
         $this->SetTextColor(...self::TEXT);
+    }
+
+    /**
+     * The signed badge: a light pill with a hairline outline, the green shield and one line,
+     * "Firmado electrónicamente · 28.10.2026, 10:42 h", centred between $from and $to.
+     *
+     * Green only on the icon, so it does not compete with the logo or the text; the words carry
+     * the meaning in black and white. The badge proves nothing by itself: the QR and the code do.
+     *
+     * @param float $x left edge
+     * @param float $from where the space above it starts (the end of the body)
+     * @param float $to where the space under it ends (the signer's name)
+     * @param string $label "Firmado electrónicamente"
+     * @param string $when the date and time of the signature
+     * @return void
+     */
+    public function signed_badge(float $x, float $from, float $to, string $label, string $when): void {
+        $padding = $this->getCellPaddings();
+        $this->setCellPaddings(0, 0, 0, 0);
+        $this->SetFont(self::FONT, '', self::BADGE_FONT);
+        $rest = ' · ' . $when;
+        $labelw = $this->GetStringWidth($label);
+        $restw = $this->GetStringWidth($rest);
+        $width = self::BADGE_PAD_L + self::BADGE_ICON + self::BADGE_GAP + $labelw + $restw + self::BADGE_PAD_R;
+        $y = ($from + $to - self::BADGE_H) / 2;
+
+        $this->SetDrawColor(...self::BADGE_RULE);
+        $this->SetLineWidth(0.5);
+        $this->RoundedRect($x, $y, $width, self::BADGE_H, self::BADGE_H / 2, '1111', 'D');
+        $icon = dirname(__DIR__, 2) . '/pix/brand/signed.svg';
+        if (is_readable($icon)) {
+            $this->ImageSVG($icon, $x + self::BADGE_PAD_L, $y + (self::BADGE_H - self::BADGE_ICON) / 2, self::BADGE_ICON,
+                self::BADGE_ICON);
+        }
+        $this->SetXY($x + self::BADGE_PAD_L + self::BADGE_ICON + self::BADGE_GAP, $y);
+        $this->SetTextColor(...self::TEXT);
+        $this->Cell($labelw, self::BADGE_H, $label, 0, 0, 'L', false, '', 0, false, 'T', 'M');
+        $this->SetTextColor(...self::MUTED);
+        $this->Cell($restw, self::BADGE_H, $rest, 0, 0, 'L', false, '', 0, false, 'T', 'M');
+        $this->SetTextColor(...self::TEXT);
+        $this->setCellPaddings($padding['L'], $padding['T'], $padding['R'], $padding['B']);
     }
 
     /**

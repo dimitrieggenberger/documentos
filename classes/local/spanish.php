@@ -96,6 +96,19 @@ class spanish {
     }
 
     /**
+     * "28.10.2026, 10:42 h": the short date and time, for the signed badge.
+     *
+     * @param int $time
+     * @param string $timezone
+     * @return string
+     */
+    public static function date_time_short(int $time, string $timezone = '99'): string {
+        $date = new \DateTime('@' . $time);
+        $date->setTimezone(\core_date::get_user_timezone_object($timezone === '99' ? \core_date::get_server_timezone() : $timezone));
+        return $date->format('d.m.Y, H:i') . ' h';
+    }
+
+    /**
      * "a los veintisiete días del mes de octubre del año dos mil veintiséis".
      *
      * @param int $time

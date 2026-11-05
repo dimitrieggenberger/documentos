@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.1] - 2026-11-05
+
+### Changed
+
+- **The footer** of every sheet: the verification QR at the bottom left with the verification lines beside it, left-aligned, and europaschule.eu at the bottom right (until now the other way round). Decided 2026-11-05 (Figma *Documento/Pie*, "Izquierda (elegida)").
+- **The signed badge**: an electronically given signature now prints a light pill, centred between the body and the signer's name: a hairline grey outline, a small green shield and "Firmado electrónicamente · 28.10.2026, 10:42 h" (until now two small italic lines at the foot of the room to sign). Decided 2026-11-05 (Figma *Documento/Sello de firma electrónica*, "A · Insignia", "Ligero"). Documents signed by hand keep their line to sign on; drafts keep "Firma pendiente". Documents issued before keep their stored PDF.
 ## [0.8.0] - 2026-10-28
 
 ### Added

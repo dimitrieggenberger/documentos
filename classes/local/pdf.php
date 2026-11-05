@@ -152,8 +152,9 @@ class pdf {
     }
 
     /**
-     * The signature block: per signer the room to sign, name in bold, position, e-mail and
-     * phone; the stamp beside them, centred on the block.
+     * The signature block: per signer the room to sign (the signed badge once signed
+     * electronically), name in bold, position, e-mail and phone; the stamp beside them, centred
+     * on the block.
      *
      * @param letter_pdf $pdf
      * @param array $signers
@@ -170,16 +171,18 @@ class pdf {
         $sm = get_string_manager();
         $height = letter_pdf::SIGN_H + 20 + 8 + 20;
         $height = max($height, $stamp !== '' ? letter_pdf::STAMP : 0);
-        $top = $pdf->GetY() + letter_pdf::BEFORE_SIGNATURE;
+        $bodyend = $pdf->GetY();
+        $top = $bodyend + letter_pdf::BEFORE_SIGNATURE;
         if ($top + $height > letter_pdf::PAGE_H - letter_pdf::MARGIN_Y - letter_pdf::FOOTER_H) {
             $pdf->AddPage();
             $top = letter_pdf::body_top();
+            $bodyend = $top;
         }
         $x = letter_pdf::MARGIN_X;
         $bottom = $top;
         foreach ($signers as $signer) {
-            // The room to sign by hand carries the electronic signature, at the foot of it: "Firmado
-            // electrónicamente" and, under it, the date and time it was given.
+            // The room to sign: a line to sign on by hand; the signed badge, centred between the body and
+            // the name, once the electronic signature is given; "Firma pendiente" until then.
             $approved = (int)($signer['approvedon'] ?? 0);
             $pdf->SetTextColor(...letter_pdf::MUTED);
             $pdf->SetFont(letter_pdf::FONT, 'I', 6);
@@ -188,14 +191,14 @@ class pdf {
                 $pdf->SetLineWidth(0.5);
                 $pdf->Line($x, $top + letter_pdf::SIGN_H - 3, $x + letter_pdf::SIGNER_W - 20, $top + letter_pdf::SIGN_H - 3);
             } else if ($approved > 0) {
-                $pdf->SetXY($x, $top + letter_pdf::SIGN_H - 16.5);
-                $pdf->Cell(letter_pdf::SIGNER_W, 7.5, $sm->get_string('pdfsigned', 'local_documents', null, 'es'), 0, 0, 'L',
-                    false, '', 1);
+                $pdf->signed_badge($x, $bodyend, $top + letter_pdf::SIGN_H,
+                    $sm->get_string('pdfsigned', 'local_documents', null, 'es'),
+                    $sm->get_string('pdfapproved', 'local_documents', spanish::date_time_short($approved), 'es'));
+            } else {
+                $pdf->SetXY($x, $top + letter_pdf::SIGN_H - 9);
+                $pdf->Cell(letter_pdf::SIGNER_W, 7.5, $sm->get_string('pdfsignpending', 'local_documents', null, 'es'), 0, 0,
+                    'L', false, '', 1);
             }
-            $pdf->SetXY($x, $top + letter_pdf::SIGN_H - 9);
-            $pdf->Cell(letter_pdf::SIGNER_W, 7.5, $handwritten ? '' : ($approved > 0
-                ? $sm->get_string('pdfapproved', 'local_documents', spanish::date_time($approved), 'es')
-                : $sm->get_string('pdfsignpending', 'local_documents', null, 'es')), 0, 0, 'L', false, '', 1);
             $y = $top + letter_pdf::SIGN_H;
             $pdf->SetXY($x, $y);
             $pdf->SetTextColor(...letter_pdf::TEXT);

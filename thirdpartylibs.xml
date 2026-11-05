@@ -11,4 +11,15 @@
       <copyright>2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins)</copyright>
     </copyrights>
   </library>
+  <library>
+    <location>pix/brand/signed.svg</location>
+    <name>Font Awesome Free: shield-halved</name>
+    <description>The icon of the signed badge, recoloured to the success green.</description>
+    <version>6.7.2</version>
+    <license>CC BY 4.0</license>
+    <licenseversion>4.0</licenseversion>
+    <copyrights>
+      <copyright>Fonticons, Inc. (https://fontawesome.com)</copyright>
+    </copyrights>
+  </library>
 </libraries>
