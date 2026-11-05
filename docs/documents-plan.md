@@ -102,12 +102,24 @@ Sandbox, frame 39:250, component 109:508), built with TCPDF through Moodle's
   attendance tables at 7.5 pt with hairlines.
 - Signature block 8 pt below: per signer 34 pt to sign by hand, name in
   bold, position, e-mail and phone (secondary grey); the stamp (78 pt, the
-  simplified seal) beside them on issued documents. "Adjunto: …" 36 pt
+  simplified seal) beside them on issued documents. Once a signer signs
+  electronically, the **signed badge** stands centred between the body and
+  the name (decided 2026-11-05; Figma *Documento/Sello de firma
+  electrónica*, "A · Insignia", "Ligero"): a pill 13.5 pt high with a
+  hairline grey outline (#ccd1d6) and no fill, the shield icon in the
+  success green (#00847c), and one line at 5.75 pt, "Firmado
+  electrónicamente" (#1d2125) "· 28.10.2026, 10:42 h" (#6a737b). Green only
+  on the icon, so the badge does not compete with the logo or the text; the
+  proof is still the QR and the code. A light round seal stays an optional
+  extra in Figma, not printed. "Adjunto: …" 36 pt
   lower when the letter has an attachment.
 - The watermark (380 pt, centred, top at 229 pt, 5 %) behind the page.
-- Footer: europaschule.eu at the bottom left (92 × 15.9 pt); at the bottom
-  right the verification lines (number, code, the verification address,
-  validity, page) at 6 pt and the QR code (40 pt). The QR and the
+- Footer (decided 2026-11-05; Figma *Documento/Pie*, "Izquierda
+  (elegida)"): the QR code (40 pt) at the bottom left, beside it the
+  verification lines (number in bold, code, the verification address,
+  validity, the signature law, page) at 6 pt, left-aligned, and
+  europaschule.eu (92 × 15.9 pt) at the bottom right. Until then the
+  wordmark was on the left and the QR on the right. The QR and the
   verification lines are this plugin's addition to the frame.
 - Drafts print BORRADOR across the sheet, no number, no QR, no stamp.
 
@@ -173,8 +185,9 @@ JD.
   issues it: number, frozen text, PDF. A signer can **send it back** with a
   note (the draft opens again, every signature given is dropped); the sender
   can take it back to change it.
-- The sheet prints, in each signer's room to sign, "Firmado electrónicamente"
-  with the date and time; the verification page says who signed and when.
+- The sheet prints, for each signer, the signed badge ("Firmado
+  electrónicamente · date and time", section 6); the verification page says
+  who signed and when.
   Each approval keeps its evidence: the address it came from and the
   fingerprint of what was signed (section 12).
 - A new head of a unit takes over the signatures still waiting on it.
@@ -292,7 +305,7 @@ or Honducert).
 **What the documents say.** Issued documents signed on the platform print,
 in the footer, "Firmado electrónicamente conforme a la Ley sobre Firmas
 Electrónicas (Decreto 149-2013)." (setting `signaturelaw`, frozen at issue;
-empty prints nothing), and each signer's room to sign reads "Firmado
+empty prints nothing), and each signer has the signed badge, "Firmado
 electrónicamente" with the date and time. The verification pages (Moodle and
 the website's plugin) repeat the sentence and say what the platform keeps of
 each signature. A document issued without signatures cites nothing. The
