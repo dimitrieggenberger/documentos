@@ -105,7 +105,7 @@ Sandbox, frame 39:250, component 109:508), built with TCPDF through Moodle's
   simplified seal) beside them on issued documents. Once a signer signs
   electronically, the **signed badge** stands centred between the body and
   the name (decided 2026-11-05; Figma *Documento/Sello de firma
-  electrónica*, "A · Insignia", "Ligero"): a pill 13.5 pt high with a
+  electrónica*, "A · Insignia (elegida)"): a pill 13.5 pt high with a
   hairline grey outline (#ccd1d6) and no fill, the shield icon in the
   success green (#00847c), and one line at 5.75 pt, "Firmado
   electrónicamente" (#1d2125) "· 28.10.2026, 10:42 h" (#6a737b). Green only
@@ -114,8 +114,7 @@ Sandbox, frame 39:250, component 109:508), built with TCPDF through Moodle's
   extra in Figma, not printed. "Adjunto: …" 36 pt
   lower when the letter has an attachment.
 - The watermark (380 pt, centred, top at 229 pt, 5 %) behind the page.
-- Footer (decided 2026-11-05; Figma *Documento/Pie*, "Izquierda
-  (elegida)"): the QR code (40 pt) at the bottom left, beside it the
+- Footer (decided 2026-11-05; Figma *Documento/Pie*): the QR code (40 pt) at the bottom left, beside it the
   verification lines (number in bold, code, the verification address,
   validity, the signature law, page) at 6 pt, left-aligned, and
   europaschule.eu (92 × 15.9 pt) at the bottom right. Until then the
@@ -402,7 +401,8 @@ to cut off and return signed.
   the boxes AUTORIZO / NO AUTORIZO, then what is authorised (the template's
   **consent text**, a new part of the template version: `consent`, with the
   same markup and placeholders), then lines for full name, identity number,
-  phone, date and signature, and the slip's own code and QR. The fields
+  phone, date and signature, with the slip's own QR and code on their left
+  (as in the footer, since 0.8.2). The fields
   `devolver_a` and `devolver_antes` print where it goes back and by when.
   Empty consent text: no slip. The slip is left-aligned (a form; TCPDF also
   loses the space after bold text on a justified line). The letter of an
