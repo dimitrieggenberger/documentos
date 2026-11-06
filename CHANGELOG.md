@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.2] - 2026-11-06
+
+### Changed
+
+- **The consent slip** of an authorisation prints its own QR and code on the left, with the adult's lines beside them, as the sheet's footer does since 0.8.1 (until now the QR was on the right). Figma *Documento/Colilla* follows.
+- Comments name the Figma pieces as they are now (*Documento/Pie*, *Documento/Sello de firma electrónica* "A · Insignia (elegida)"); the earlier footer and the other badge proposals were removed from the design sandbox.
 ## [0.8.1] - 2026-11-05
 
 ### Changed

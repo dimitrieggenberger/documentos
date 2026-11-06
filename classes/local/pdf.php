@@ -403,17 +403,18 @@ class pdf {
         $pdf->writeHTML(str_replace('text-align:justify;', 'text-align:left;', (string)$composed['consenthtml']), true,
             false, true, false, '');
 
-        // The adult's lines, and the slip's own code and QR beside them.
+        // The slip's own QR and code on the left, as in the sheet's footer, and the adult's lines beside them.
         $y = $pdf->GetY() + 4;
         $qr = 46;
         $lines = $width - $qr - 16;
+        $linesx = $left + $qr + 16;
         $pdf->SetLineStyle(['width' => 0.5, 'dash' => 0, 'color' => letter_pdf::MUTED]);
         $pdf->SetFont(letter_pdf::FONT, '', 7);
         $pdf->SetTextColor(...letter_pdf::MUTED);
         $rows = [[$str('pdfslipname'), 1.0], [$str('pdfslipidnumber'), 0.55, $str('pdfslipphone'), 0.45],
             [$str('pdfslipdate'), 0.35, $str('pdfslipsignature'), 0.65]];
         foreach ($rows as $row) {
-            $x = $left;
+            $x = $linesx;
             $y += 18;
             for ($k = 0; $k < count($row); $k += 2) {
                 $w = $lines * $row[$k + 1];
@@ -425,13 +426,13 @@ class pdf {
             }
         }
         if ($slip && $final) {
-            $qx = $left + $width - $qr;
+            $qx = $left;
             $qy = $y - 3 * 18 + 2;
             $pdf->write2DBarcode(config::verify_url((string)$slip->verifycode), 'QRCODE,M', $qx, $qy, $qr, $qr,
                 ['border' => false, 'padding' => 0, 'fgcolor' => letter_pdf::TEXT, 'bgcolor' => false], 'N');
             $pdf->SetFont(letter_pdf::FONT, '', 5.5);
-            $pdf->SetXY($qx - 20, $qy + $qr + 2);
-            $pdf->Cell($qr + 20, 7, numbering::format_code((string)$slip->verifycode), 0, 0, 'C', false, '', 1);
+            $pdf->SetXY($qx, $qy + $qr + 2);
+            $pdf->Cell($qr, 7, numbering::format_code((string)$slip->verifycode), 0, 0, 'L', false, '', 1);
         }
         $pdf->SetTextColor(...letter_pdf::TEXT);
         $pdf->SetXY($left, $y + 4);

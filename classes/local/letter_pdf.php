@@ -31,8 +31,8 @@ require_once($CFG->libdir . '/pdflib.php');
  * margins 1.5 cm top and bottom (42.5 pt) and 3 cm left and right (85 pt),
  * Poppins throughout. Matching a later change of the frame is a change of
  * these constants. The footer and the signed badge follow the Figma
- * components Documento/Pie ("Izquierda (elegida)") and Documento/Sello de
- * firma electrónica ("A · Insignia", "Ligero"), chosen on 2026-11-05.
+ * components Documento/Pie and Documento/Sello de firma electrónica
+ * ("A · Insignia (elegida)"), chosen on 2026-11-05.
  *
  * @package   local_documents
  * @copyright Educación Helvética SA / EuropaSchule
