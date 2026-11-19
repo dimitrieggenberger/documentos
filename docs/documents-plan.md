@@ -336,24 +336,43 @@ its signature and seal is valid, and that the check confirms it was issued
 and with what content. A PDF of it shared on its own is therefore, by its
 own words, not valid.
 
+**The school's rule** (decided 2026-11-19). The electronic signature is used
+for most of what is sent in digital form. *Instrumentos públicos* in the
+school's sense (escrituras, compraventas, reconocimiento de deuda and the
+like) are signed by hand; none of them is issued on the platform. The
+certificaciones and the solvencia stay signed by hand (above). The advanced
+signature is for later (below).
+
 **To confirm with a lawyer.**
 
-- Whether a *certificación* (studies, grades) counts as an instrumento
-  público, and what SEDUC or an embassy accepts: those may still need the
-  handwritten signature and the seal, or an advanced signature.
-- Consents of families (section 13): art. 6 excludes acts of family law;
+- Consents of families (section 15): art. 6 excludes acts of family law;
   a school trip consent is probably not one, but sharing a student's file
-  should be checked.
+  should be checked. Families answering on the parents' portal waits for
+  this.
 
-**Next step, optional.** A certificate for the school from an accredited
-provider would let the PDF itself carry the institution's advanced
-signature (PAdES, shown as signed and unaltered by PDF readers), on top of
-the platform's evidence.
+**Later: the institution's advanced signature.** A certificate for the
+school as a legal person (Educación Helvética SA) from a provider accredited
+by the Instituto de la Propiedad would let the platform seal each PDF as it
+is issued (PAdES, with a timestamp): any PDF reader then shows it as signed
+and unaltered, without the verification page, and it is a *firma electrónica
+avanzada* (art. 3.2). One institutional seal, applied automatically, rather
+than a certificate per signer. Before buying, ask the provider: a
+certificate a server can use (a .p12/.pfx file or cloud signing with an API,
+not a USB token); price, validity and requirements (the legal
+representative, in person); whether Adobe Reader trusts its root (else
+readers show "validity unknown"); a timestamp service. Providers seen as
+accredited: Honducert, Tecnisign, Uanataca (through Hondufirma), the Banco
+Central de Honduras; the current list is the Instituto de la Propiedad's
+(firmaelectronica@ip.gob.hn). TCPDF can sign and timestamp; the
+verification page would say so. It may reopen whether certificaciones are
+valid in digital form, which depends on the lawyer, SEDUC and the
+embassies.
 
 ## 13. Later
 
-- Signature and seal images per signer (today the approval date stands in
-  the room to sign).
+- The institution's advanced signature (section 12).
+- Families answering an authorisation on the parents' portal (section 15),
+  once a lawyer has looked at it.
 - The full TRD as an importable catalogue.
 - Students and staff requesting a document from their own page.
 - A Certificación de estudios over several school years.
