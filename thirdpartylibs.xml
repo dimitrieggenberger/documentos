@@ -3,7 +3,7 @@
   <library>
     <location>fonts</location>
     <name>Poppins (converted for TCPDF)</name>
-    <description>The brand font of the sheet, Regular, Bold and Italic, converted with TCPDF_FONTS::addTTFfont().</description>
+    <description>The brand font of the sheet, Regular, Bold and Italic, converted with TCPDF_FONTS::addTTFfont(); the space and no-break space set to the Regular width (267) in all three, so TCPDF justifies mixed styles correctly.</description>
     <version>4.003</version>
     <license>OFL</license>
     <licenseversion>1.1</licenseversion>

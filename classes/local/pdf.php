@@ -406,7 +406,7 @@ class pdf {
             . (trim((string)$slip->gradename) !== '' ? ', ' . s($str('pdfslipgrade', trim((string)$slip->gradename))) : '')
             : s($str('pdfslipnostudent'));
         $pdf->SetY($pdf->GetY() + 4);
-        // Left-aligned: a form, and TCPDF loses the space after bold text on a justified line.
+        // Left-aligned, as a form is.
         $pdf->writeHTML('<p style="text-align:left;">' . s($str('pdfslipadult')) . ' ' . $student . ':</p>', true, false,
             true, false, '');
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.4] - 2026-11-19
+
+### Fixed
+
+- **A word after bold or italic text no longer runs into it on a justified line** ("Antropologíaen"). TCPDF draws every space of a justified line with one width taken from the line's first font; Poppins Bold's space is narrower than Regular's (212 against 267 units), so bold words came out longer than laid out. The converted fonts now give the space and the no-break space the Regular width in all three styles; a test checks it, so converting the fonts again keeps the fix.
+
 ## [0.8.3] - 2026-11-19
 
 ### Changed

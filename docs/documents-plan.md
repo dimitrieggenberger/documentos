@@ -100,6 +100,13 @@ Sandbox, frame 39:250, component 109:508), built with TCPDF through Moodle's
   instructivo prints it; a correction adds "Versión 2: sustituye a…".
 - Letters: the recipient (name in bold, position, institution, e-mail) 28 pt
   lower, then 52 pt to the title. Other documents: 40 pt to the title.
+- Poppins Regular, Bold and Italic are converted for TCPDF in `fonts/`, with
+  one change: the space (and the no-break space) is 267 units wide in all
+  three, the Regular width (Bold has 212, Italic 298). TCPDF justifies a line
+  of a Unicode font by drawing every space with one width worked out from the
+  line's first font, so a narrower bold space made the bold words longer than
+  laid out and the next word ran into them ("Antropologíaen"). Converting the
+  fonts again needs the same change; `tests/fonts_test.php` checks it.
 - Title Poppins Bold 14 pt on 17, sentence case ("Constancia de estudio");
   16 pt; body 8 pt on 10, justified, paragraphs 10 pt apart; grade and
   attendance tables at 7.5 pt with hairlines.
@@ -407,8 +414,7 @@ to cut off and return signed.
   phone, date and signature, with the slip's own QR and code on their left
   (as in the footer, since 0.8.2). The fields
   `devolver_a` and `devolver_antes` print where it goes back and by when.
-  Empty consent text: no slip. The slip is left-aligned (a form; TCPDF also
-  loses the space after bold text on a justified line). The letter of an
+  Empty consent text: no slip. The slip is left-aligned, as a form is. The letter of an
   authorisation starts higher on the page (`AFTER_HEADER_COMPACT`) so that
   letter and slip share one page; a slip that does not fit whole goes to the
   top of the next page (drawn in a TCPDF transaction and undone if it ran
