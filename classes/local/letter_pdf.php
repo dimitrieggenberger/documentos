@@ -80,7 +80,10 @@ class letter_pdf extends \pdf {
     const STAMP = 78;
     /** @var float Space before the attachment line. */
     const BEFORE_ATTACHMENT = 36;
-    /** @var float Space under the header in an authorisation, so the letter and its slip share one page. */
+    /**
+     * @var float Space under the header in an authorisation, so the letter and its slip share one page, and in a
+     * document that would otherwise run onto a second page (a table of grades, an index of companions).
+     */
     const AFTER_HEADER_COMPACT = 36;
     /** @var float The watermark: 380 pt, centred, its top 229 pt down. */
     const WATERMARK = 380;

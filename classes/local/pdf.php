@@ -37,8 +37,32 @@ class pdf {
      * @return string the PDF bytes
      */
     public static function render(array $bundle, bool $final, ?array $slips = null): string {
-        $doc = $bundle['doc'];
         $composed = documents::compose($bundle);
+        $pdf = self::build($bundle, $composed, $final, $slips, false);
+        // The brand manual's space under the header, unless the document then runs onto a second page (a table
+        // of grades, an index of companions): then it is laid out again starting higher. TCPDF's transactions
+        // cannot undo this: writeHTML() opens its own for a table, which ends any open one.
+        if ((string)($composed['consenthtml'] ?? '') === '' && $pdf->getNumPages() > 1) {
+            $compact = self::build($bundle, $composed, $final, $slips, true);
+            if ($compact->getNumPages() < $pdf->getNumPages()) {
+                $pdf = $compact;
+            }
+        }
+        return $pdf->Output('', 'S');
+    }
+
+    /**
+     * Lay out the sheet.
+     *
+     * @param array $bundle from documents::get()
+     * @param array $composed from documents::compose()
+     * @param bool $final
+     * @param \stdClass[]|null $slips as render() takes them
+     * @param bool $compact the smaller space under the header (an authorisation always has it)
+     * @return letter_pdf
+     */
+    private static function build(array $bundle, array $composed, bool $final, ?array $slips, bool $compact): letter_pdf {
+        $doc = $bundle['doc'];
         $school = $composed['school'];
         $values = $composed['values'];
         $strings = self::strings($doc, $composed, $final);
@@ -80,7 +104,7 @@ class pdf {
             $width = letter_pdf::text_width();
             $left = letter_pdf::MARGIN_X;
             $y = letter_pdf::MARGIN_Y + letter_pdf::SEAL
-                + ($consent !== '' ? letter_pdf::AFTER_HEADER_COMPACT : letter_pdf::AFTER_HEADER);
+                + ($consent !== '' || $compact ? letter_pdf::AFTER_HEADER_COMPACT : letter_pdf::AFTER_HEADER);
 
             // Place and date on the left (letters), the number on the right, as the instructivo prints it.
             $pdf->SetTextColor(...letter_pdf::TEXT);
@@ -148,7 +172,7 @@ class pdf {
             }
         }
 
-        return $pdf->Output('', 'S');
+        return $pdf;
     }
 
     /**

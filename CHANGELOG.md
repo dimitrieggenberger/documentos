@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.3] - 2026-11-19
+
+### Changed
+
+- **Documents that would run onto a second page** (a table of grades, an index of companions) are laid out again with the smaller space under the header that authorisations use, and keep it when they then fit on fewer pages. A constancia or certificación de notas, or a certificación de estudios, no longer leaves its signatures alone on page 2. Seen in the Figma mockups of every document.
+
 ## [0.8.2] - 2026-11-06
 
 ### Changed

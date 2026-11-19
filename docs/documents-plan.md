@@ -92,7 +92,10 @@ Sandbox, frame 39:250, component 109:508), built with TCPDF through Moodle's
 - Header on every page: the seal for documents (66 pt), a rule, the school
   and its legal name, a rule, the issuing unit with its official e-mail and
   phone (Poppins 6 pt on 7.5, #6a737b; rules #dee2e6, 0.75 × 32 pt).
-- 110 pt under the header: place and date on the left (letters only) and,
+- 110 pt under the header (36 pt in an authorisation, and in any document that
+  would otherwise run onto a second page, such as a table of grades: it is laid
+  out again starting higher, and kept so when it then fits on fewer pages):
+  place and date on the left (letters only) and,
   on the right, the number with the school's name under it, as page 10 of the
   instructivo prints it; a correction adds "Versión 2: sustituye a…".
 - Letters: the recipient (name in bold, position, institution, e-mail) 28 pt
