@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Mockup harness (never shipped): the [es_verificacion] shortcode's real output for each answer.
+ * Mockup harness (never shipped): the [verificacion_europaschule] shortcode's real output for each answer.
  *
  * Runs the WordPress plugin with the few WordPress functions it calls stubbed
  * and the platform's answer invented, and prints one HTML fragment per state as
@@ -93,7 +93,7 @@ function size_format($bytes) {
     return round($bytes / 1024) . ' KB';
 }
 
-require(__DIR__ . '/../../wordpress/es-verificacion/es-verificacion.php');
+require(__DIR__ . '/../../wordpress/verificacion-europaschule/verificacion-europaschule.php');
 
 $document = [
     'code' => '7KQM-3XRT-9WPA', 'title' => 'Constancia de estudio',
@@ -122,6 +122,6 @@ $out = [];
 foreach ($states as $name => $answer) {
     $GLOBALS['answer'] = $answer;
     $_GET = $answer === null ? [] : ['c' => $name === 'noexiste' ? 'Z9Z9-Z9Z9-Z9Z9' : '7KQM3XRT9WPA'];
-    $out[$name] = es_verificacion_shortcode();
+    $out[$name] = es_ver_shortcode();
 }
 echo json_encode($out, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);

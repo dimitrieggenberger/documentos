@@ -33,7 +33,7 @@ use local_documents\local\ui;
 require_login();
 $context = context_system::instance();
 $PAGE->set_context($context);
-require_capability('local/documents:issue', $context);
+require_capability('local/documents:recordresponses', $context);
 
 $slipid = required_param('slip', PARAM_INT);
 $slip = $DB->get_record('local_documents_slip', ['id' => $slipid], '*', MUST_EXIST);

@@ -11,7 +11,9 @@ This repository is the source of truth for the Moodle plugin `local_documents`.
 - GitHub repo: `dimitrieggenberger/documentos`
 - Installable ZIPs are build artifacts only, created by `build-zip.ps1` (it also builds the WordPress plugin ZIP)
 
-The shared rulebook for sibling plugins is `docs/shared-plugin-instructions.md` in `dimitrieggenberger/moodle-local-grades`; follow it (UI reference, styling hierarchy, Working Screens, sizes, mockups, sim). The design record of this plugin is `docs/documents-plan.md`.
+The shared rulebook for sibling plugins is `docs/shared-plugin-instructions.md` in `dimitrieggenberger/moodle-local-grades`; follow it (UI reference, styling hierarchy, Working Screens, sizes, mockups, sim). The design record of this plugin is `docs/documents-plan.md`; how long data is kept is `docs/retention.md`.
+
+This plugin moves into the school's `platform` repository in summer 2027 (`docs/decision-draft.md`). Its constitution (`CONSTITUTION.md` there) already applies in spirit: no rename of a component, table, capability or the verification address once in production; a separate capability for each of view, issue, approve, export; every consequential rule names its source (Handbook page, law, decision) with its date; retention stated in `docs/retention.md`.
 
 ## Main Files
 
@@ -38,7 +40,7 @@ The shared rulebook for sibling plugins is `docs/shared-plugin-instructions.md` 
 - `classes/local/verify.php`: the public answer and the rate limit
 - `classes/local/catalog.php`: seeded series and templates (Spanish: the documents' language)
 - `classes/local/spanish.php`: dates in words, grade names
-- `wordpress/es-verificacion/`: the WordPress plugin for the public website
+- `wordpress/verificacion-europaschule/`: the WordPress plugin for the public website
 
 ## Boundaries
 

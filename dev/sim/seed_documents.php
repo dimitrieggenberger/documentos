@@ -136,7 +136,8 @@ $role = static function(string $shortname, string $name) use ($DB): int {
 $secretaria = $role('secretaria', 'Secretaría');
 $direccion = $role('direccion', 'Dirección');
 set_role_contextlevels($secretaria, [CONTEXT_SYSTEM]);
-foreach (['local/documents:view', 'local/documents:issue'] as $capability) {
+foreach (['local/documents:view', 'local/documents:issue', 'local/documents:recordresponses',
+        'local/documents:export'] as $capability) {
     assign_capability($capability, CAP_ALLOW, $secretaria, $system->id, true);
     assign_capability($capability, CAP_ALLOW, $direccion, $system->id, true);
 }

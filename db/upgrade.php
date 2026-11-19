@@ -217,5 +217,33 @@ function xmldb_local_documents_upgrade($oldversion) {
         \local_documents\local\catalog::install();
         upgrade_plugin_savepoint(true, 2026103400, 'local', 'documents');
     }
+    if ($oldversion < 2026111902) {
+        // The image authorisation asked for a consent for the whole year; the Handbook's policy on images
+        // (page 116, version 3, 2026-07-26) wants one per image, purpose, text and channel. A template nobody
+        // changed gets the new text as a new version; one a person edited is theirs to adapt.
+        $type = $DB->get_record('local_documents_type', ['shortname' => 'autorizacion_imagen']);
+        if ($type) {
+            $current = $DB->get_record('local_documents_tplver', ['id' => (int)$type->currentversion]);
+            $oldbody = "Estimadas familias:\n\nDurante el año lectivo tomamos fotografías y videos de las actividades "
+                . "escolares, y registramos datos de los estudiantes, para {{f.proposito}}.\n\nAntes de publicar la "
+                . "imagen de un estudiante en {{f.medios}} necesitamos el consentimiento de su madre, padre o persona "
+                . "responsable legal. El consentimiento vale {{f.periodo}} y puede retirarse en cualquier momento por "
+                . "escrito ante la Secretaría.\n\nLes rogamos completar la colilla al pie y devolverla firmada a "
+                . "{{f.devolver_a}}{{f.devolver_antes| a más tardar el **|**}}.\n\nAtentamente,";
+            if ($current && (string)$current->body === $oldbody) {
+                $new = \local_documents\local\catalog::types()['autorizacion_imagen'];
+                \local_documents\local\templates::save_version((int)$type->id, [
+                    'title' => $new['title'], 'body' => $new['body'], 'fields' => $new['fields'],
+                    'allowbodyedit' => (int)$new['allowbodyedit'], 'consent' => $new['consent'],
+                    'changenote' => 'Adaptada a la política «Imágenes, grabaciones y publicación de estudiantes» '
+                        . '(Manual Institucional, versión 3): una autorización por imagen, finalidad, texto y canal.',
+                ], 0);
+                if ((string)$type->name === 'Autorización de toma de datos, fotos y uso de imagen') {
+                    $DB->set_field('local_documents_type', 'name', $new['name'], ['id' => (int)$type->id]);
+                }
+            }
+        }
+        upgrade_plugin_savepoint(true, 2026111902, 'local', 'documents');
+    }
     return true;
 }

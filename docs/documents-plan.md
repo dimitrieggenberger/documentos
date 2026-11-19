@@ -75,8 +75,8 @@ years of service, courses taught.
 - The public page is **europaschule.eu/verificar** (the default of the
   "Verification page" setting); the QR opens `/verificar/?c=CODE`.
   Mockup: `dev/verify-mockup/` (states.php, build.py, shoot.js).
-- `wordpress/es-verificacion` is the public page: shortcode
-  `[es_verificacion]`, Spanish, asks the API server-side, caches a minute, and
+- `wordpress/verificacion-europaschule` is the public page: shortcode
+  `[verificacion_europaschule]`, Spanish, asks the API server-side, caches a minute, and
   lets the visitor compare a PDF with the original's SHA-256 in the browser
   (the file is not uploaded).
 
@@ -143,6 +143,9 @@ oficio, circular and memorándum, the recipient fields (destinatario, cargo,
 institución, correo) and an optional attachment.
 
 ## 7. Retention
+
+How long each kind of data is kept, today and as proposed, and how it is
+removed: [retention.md](retention.md). In short:
 
 Each series carries the TRD periods (5 years in the archivo de trámite, 10 in
 concentración, then permanent for the seeded ones); the record shows until
@@ -414,7 +417,7 @@ school's reading; to confirm with the Dirección Departamental.
 ## 15. Authorisations for families: the consent slip
 
 Decided 2026-10-28. A letter that explains what is asked (an excursion, data
-and images, a vaccination day, sharing a student's file with another school,
+and image publication, a vaccination day, sharing a student's file with another school,
 an extracurricular activity) and, at its foot, a **consent slip** (colilla)
 to cut off and return signed.
 
@@ -449,17 +452,35 @@ to cut off and return signed.
   (the letter and that student's slip, one page) with its SHA-256: that is
   the file to send to that family by WhatsApp or e-mail. The document's own
   PDF has every student's page, to print for the class.
-- **The answers.** On the record, staff with `local/documents:issue` record
-  each returned slip: authorises, does not, or no answer yet; the date
+- **The answers.** On the record, staff with `local/documents:recordresponses`
+  record each returned slip: authorises, does not, or no answer yet; the date
   written on it; a note (allergies, who signed); and the slip as scanned or
   photographed (`response.php`, file area `slipscan`, staff only). Counts at
-  the top, and the list as CSV for the day of the activity.
+  the top, and the list as CSV for the day of the activity (capability
+  `local/documents:export`). Since 0.9.0 both are capabilities of their own,
+  apart from issuing and viewing (Constitution of the platform, Article 5.4);
+  roles that had `issue` and `view` keep them (cloned at the upgrade).
 - **Verification.** A slip's code answers for the letter it belongs to:
   "Colilla de autorización · title", the student's name, the masked number,
   and the fingerprint of that student's PDF. The answer is never public.
   The letter's own code says how many students it went to.
 - **A correction** (new version) goes to the same students with new slips
   and codes: the families answer the corrected letter.
+- **Publishing a student's image** (`autorizacion_imagen`, since 0.9.0)
+  follows the Handbook's policy *Imágenes, grabaciones y publicación de
+  estudiantes* (page 116, version 3, in force since 2026-07-26). The letter
+  asks for one image or session, for one purpose, in one channel, with the
+  planned text, and nothing else. It does not ask for a general consent for
+  the year, because the policy says a general consent does not count. It
+  says that a refusal changes nothing for the student, that the student is
+  asked too, that Gerencia Académica approves each publication, and that
+  consent can be withdrawn at any time. The slip adds a line for the
+  student's own agreement. Internal use (portfolios, the family, the grade's
+  group) needs no consent, so the letter does not ask for it. The policy
+  keeps consent in the student's internal profile (`essis`). Until a bridge
+  exists, the slip's answer here is the evidence, and copying it into the
+  profile is a manual step. Upgrade step 2026111902 replaces the template
+  only where nobody had edited it.
 - **Later.** Families answering on the platform (the parents' portal) instead
   of on paper: an electronic acceptance (Decreto 33-2020, art. 38.C), to
   check with a lawyer first for consents that touch family law (section 12).

@@ -8,7 +8,9 @@ that opens a public verification page.
 
 - Install path: `local/documents`
 - Design record: `docs/documents-plan.md`
-- Public page: `wordpress/es-verificacion` (WordPress plugin, shortcode `[es_verificacion]`)
+- How long data is kept: `docs/retention.md`
+- Draft decision record for the move into the `platform` repository: `docs/decision-draft.md`
+- Public page: `wordpress/verificacion-europaschule` (WordPress plugin, shortcode `[verificacion_europaschule]`)
 
 ## Set up
 
@@ -16,10 +18,11 @@ that opens a public verification page.
 2. Site administration › Plugins › Local plugins › Official documents › Settings:
    school name, SACE code, jornada, city, issuing units, signatories,
    letterhead (logos, lines, footer, colour), profile fields, verification page and token.
-3. Give the secretary `local/documents:view` and `local/documents:issue`, the
-   director also `local/documents:recall` and `local/documents:managetemplates`.
-4. On the website: install `dist/es-verificacion-<version>.zip`, set the Moodle
-   address and the same token, create the page with `[es_verificacion]`, and
+3. Give the secretary `local/documents:view` and `local/documents:issue` (and,
+   for authorisations, `local/documents:recordresponses` and `local/documents:export`),
+   the director also `local/documents:recall` and `local/documents:managetemplates`.
+4. On the website: install `dist/verificacion-europaschule-<version>.zip`, set the Moodle
+   address and the same token, create the page with `[verificacion_europaschule]`, and
    enter its address as the verification page in Moodle.
 
 ## Build

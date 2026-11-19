@@ -3,9 +3,9 @@
  */
 (function () {
     'use strict';
-    document.querySelectorAll('.es-verif__file').forEach(function (box) {
+    document.querySelectorAll('.es-ver__file').forEach(function (box) {
         var input = box.querySelector('input[type="file"]');
-        var message = box.querySelector('.es-verif__filemsg');
+        var message = box.querySelector('.es-ver__filemsg');
         if (!input || !message || !window.crypto || !window.crypto.subtle) {
             box.hidden = true;
             return;
@@ -16,7 +16,7 @@
                 return;
             }
             message.textContent = 'Revisando…';
-            message.className = 'es-verif__filemsg';
+            message.className = 'es-ver__filemsg';
             file.arrayBuffer().then(function (buffer) {
                 return window.crypto.subtle.digest('SHA-256', buffer);
             }).then(function (digest) {
@@ -30,7 +30,7 @@
                 message.textContent = match
                     ? 'El archivo es idéntico al original emitido: ' + match.name + '.'
                     : 'El archivo no coincide con el documento ni con sus adjuntos: puede haber sido modificado, o es otra versión.';
-                message.className = 'es-verif__filemsg es-verif__filemsg--' + (match ? 'good' : 'bad');
+                message.className = 'es-ver__filemsg es-ver__filemsg--' + (match ? 'good' : 'bad');
             }).catch(function () {
                 message.textContent = 'No se pudo leer el archivo.';
             });

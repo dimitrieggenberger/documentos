@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Public verification as JSON, for the school's website (wordpress/es-verificacion).
+ * Public verification as JSON, for the school's website (wordpress/verificacion-europaschule).
  *
  * The one page of this plugin without a login, on purpose: whoever holds the
  * paper must be able to check it. It answers only for issued documents and

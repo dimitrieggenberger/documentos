@@ -128,7 +128,7 @@ Write-Host $zipPath
 
 # The public verification page is a WordPress plugin of its own (wordpress/),
 # shipped as a second ZIP with one root folder for Plugins > Add New > Upload.
-$wpFolder = 'es-verificacion'
+$wpFolder = 'verificacion-europaschule'
 $wpSource = Join-Path $root "wordpress\$wpFolder"
 if (Test-Path -LiteralPath $wpSource) {
     $wpFile = Get-Content -LiteralPath (Join-Path $wpSource "$wpFolder.php") -Raw

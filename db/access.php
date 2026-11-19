@@ -49,6 +49,24 @@ $capabilities = [
         'contextlevel' => CONTEXT_SYSTEM,
         'archetypes' => ['manager' => CAP_ALLOW],
     ],
+    // Record a family's answer on a consent slip, with the signed paper's scan (Constitution, Article 5.4:
+    // recording is not issuing). Existing roles keep what they had through the issue capability.
+    'local/documents:recordresponses' => [
+        'riskbitmask' => RISK_PERSONAL,
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_SYSTEM,
+        'archetypes' => ['manager' => CAP_ALLOW],
+        'clonepermissionsfrom' => 'local/documents:issue',
+    ],
+    // Download a list of personal data out of the registry, such as an authorisation's answers as CSV
+    // (Article 5.4: exporting is not viewing). Existing roles keep what they had through the view capability.
+    'local/documents:export' => [
+        'riskbitmask' => RISK_PERSONAL,
+        'captype' => 'read',
+        'contextlevel' => CONTEXT_SYSTEM,
+        'archetypes' => ['manager' => CAP_ALLOW],
+        'clonepermissionsfrom' => 'local/documents:view',
+    ],
     // Create and edit issuing units: their head (who signs) and the documents each may issue.
     'local/documents:manageunits' => [
         'riskbitmask' => RISK_CONFIG | RISK_PERSONAL,

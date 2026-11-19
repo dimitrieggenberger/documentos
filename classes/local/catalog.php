@@ -270,21 +270,30 @@ class catalog {
                 'consent' => "su participación en **{{f.actividad}}** en {{f.lugar}} el {{f.fecha}}, con salida y regreso "
                     . "{{f.horario}} y traslado en {{f.transporte}}, en las condiciones descritas en esta carta.",
             ],
+            // Publishing a student's image follows the policy "Imágenes, grabaciones y publicación de estudiantes"
+            // (Institutional Handbook, page 116, version 3, in force since 2026-07-26): consent is written, for one
+            // image or session, one purpose, one planned text and one channel; the student assents; Gerencia
+            // Académica approves every publication; a refusal limits nothing. Internal use needs no consent, so this
+            // letter asks only about publication. The answer belongs in the student's internal profile (the policy).
             'autorizacion_imagen' => [
-                'series' => 'AUTOR', 'name' => 'Autorización de toma de datos, fotos y uso de imagen', 'subject' => 'group',
-                'source' => 'basic', 'validity' => 0, 'title' => 'Autorización de toma de datos, fotografías y uso de imagen',
+                'series' => 'AUTOR', 'name' => 'Autorización de publicación de imagen', 'subject' => 'group',
+                'source' => 'basic', 'validity' => 0, 'title' => 'Autorización para publicar la imagen de un estudiante',
                 'signers' => ['ISSUER'], 'everyunit' => true, 'allowbodyedit' => 1,
-                'fields' => "proposito | Para qué se usan | textarea | documentar y dar a conocer la vida escolar | required\n"
-                    . "medios | Dónde se publican | text | el sitio web, las redes sociales y el anuario del centro | required\n"
-                    . "periodo | Vigencia | text | durante el año lectivo en curso | required\n$return",
-                'body' => "Estimadas familias:\n\nDurante el año lectivo tomamos fotografías y videos de las actividades "
-                    . "escolares, y registramos datos de los estudiantes, para {{f.proposito}}.\n\nAntes de publicar la "
-                    . "imagen de un estudiante en {{f.medios}} necesitamos el consentimiento de su madre, padre o persona "
-                    . "responsable legal. El consentimiento vale {{f.periodo}} y puede retirarse en cualquier momento por "
-                    . "escrito ante la Secretaría.\n\nLes rogamos completar la colilla al pie y devolverla firmada a "
-                    . "{{f.devolver_a}}{{f.devolver_antes| a más tardar el **|**}}.\n\nAtentamente,",
-                'consent' => "que el centro tome fotografías y videos en los que aparezca y los publique en {{f.medios}}, "
-                    . "{{f.periodo}}, para los fines descritos en esta carta.",
+                'fields' => "sesion | Imagen o sesión | textarea | | required\n"
+                    . "finalidad | Para qué se publica | textarea | | required\n"
+                    . "canal | Dónde se publica (canal y uso concreto) | text | | required\n"
+                    . "texto | Texto previsto, con lo que dice del estudiante | textarea | | required\n$return",
+                'body' => "Estimadas familias:\n\nQueremos publicar en {{f.canal}} {{f.sesion}}, en la que aparece el "
+                    . "estudiante nombrado en la colilla, para {{f.finalidad}}, con este texto: «{{f.texto}}»\n\n"
+                    . "La autorización vale solo para esa imagen, esa finalidad y ese canal. Si no autorizan, la imagen "
+                    . "no se publica o se edita para que no se le reconozca, sin ninguna consecuencia para el estudiante, "
+                    . "y pueden retirarla en cualquier momento. También preguntamos al estudiante, y Gerencia Académica "
+                    . "aprueba cada publicación. Un estudiante mayor de edad firma él mismo.\n\n"
+                    . "Les rogamos completar la colilla al pie y devolverla firmada a {{f.devolver_a}}"
+                    . "{{f.devolver_antes| a más tardar el **|**}}.\n\nAtentamente,",
+                'consent' => "que el centro publique la imagen descrita en esta carta, solo para esa finalidad, en ese "
+                    . "canal y con el texto previsto.\n\nEl estudiante está de acuerdo: ____________________ "
+                    . "(firma del estudiante)",
             ],
             'autorizacion_salud' => [
                 'series' => 'AUTOR', 'name' => 'Autorización de vacunación o jornada de salud', 'subject' => 'group',

@@ -43,9 +43,12 @@ $doc = $bundle['doc'];
 $url = new moodle_url('/local/documents/view.php', ['id' => $id]);
 $canissue = has_capability('local/documents:issue', $context);
 $canrecall = has_capability('local/documents:recall', $context);
+$canrespond = has_capability('local/documents:recordresponses', $context);
+$canexport = has_capability('local/documents:export', $context);
 
 // The list of an authorisation's answers, for the day of the activity.
 if ($action === 'exportslips') {
+    require_capability('local/documents:export', $context);
     require_once($CFG->libdir . '/csvlib.class.php');
     $rows = [];
     foreach (slips::list($id) as $slip) {
@@ -233,8 +236,9 @@ if ($slipsofdoc) {
         echo html_writer::div(implode(' ', array_map(static fn($key, $class) => html_writer::span(
             get_string('slipcount_' . $key, 'local_documents', $counts[$key]), 'badge ' . $class),
             [slips::YES, slips::NO, slips::PENDING], ['badge-success bg-success', 'badge-danger bg-danger',
-            'badge-secondary bg-secondary'])) . ' ' . html_writer::link(new moodle_url($url, ['action' => 'exportslips']),
-            get_string('slipsexport', 'local_documents'), ['class' => 'btn btn-sm btn-outline-secondary ms-2']),
+            'badge-secondary bg-secondary'])) . ($canexport ? ' ' . html_writer::link(new moodle_url($url,
+            ['action' => 'exportslips']), get_string('slipsexport', 'local_documents'),
+            ['class' => 'btn btn-sm btn-outline-secondary ms-2']) : ''),
             'mb-2 d-flex flex-wrap align-items-center gap-1');
     }
     $sl = new html_table();
@@ -253,7 +257,7 @@ if ($slipsofdoc) {
                     'slip' => $slip->id, 'scan' => 1]), get_string('slipscan', 'local_documents'),
                     ['class' => 'btn btn-sm btn-outline-secondary']);
             }
-            if ($canissue) {
+            if ($canrespond) {
                 $links[] = html_writer::link(new moodle_url('/local/documents/response.php', ['slip' => $slip->id]),
                     get_string('recordresponse', 'local_documents'), ['class' => 'btn btn-sm btn-outline-primary']);
             }

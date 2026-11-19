@@ -80,6 +80,22 @@ final class authorisations_test extends \advanced_testcase {
         }
     }
 
+    public function test_the_image_authorisation_asks_about_one_publication(): void {
+        global $DB;
+        // Handbook page 116, version 3: one image or session, purpose, planned text and channel; the student's
+        // assent; no consent for the whole year.
+        $this->setup_type('autorizacion_imagen');
+        $type = $DB->get_record('local_documents_type', ['shortname' => 'autorizacion_imagen'], '*', MUST_EXIST);
+        $version = $DB->get_record('local_documents_tplver', ['id' => $type->currentversion], '*', MUST_EXIST);
+        $fields = array_keys(\local_documents\local\templates::parse_fields((string)$version->fields));
+        foreach (['sesion', 'finalidad', 'canal', 'texto'] as $key) {
+            $this->assertContains($key, $fields);
+        }
+        $this->assertNotContains('periodo', $fields);
+        $this->assertStringContainsString('Gerencia Académica', (string)$version->body);
+        $this->assertStringContainsString('firma del estudiante', (string)$version->consent);
+    }
+
     public function test_a_group_authorisation_gives_each_student_a_slip_a_code_and_a_pdf(): void {
         global $DB;
         $typeid = $this->setup_type('autorizacion_salida');

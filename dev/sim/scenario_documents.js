@@ -133,12 +133,15 @@ const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (
   await p.goto(L + 'series.php');
   await shot(p, 'documents-series');
 
-  // Refusals: a student and a teacher cannot open the registry.
+  // Refusals: a student and a teacher cannot open the registry, record an answer or download a list of answers.
   for (const user of ['vrios', 'lmendez']) {
     const s = await login(user, 'Test123!');
-    const r = await s.goto(L + 'index.php');
-    check(/nopermissions|required|permisos|permission/i.test(await s.content()) || r.status() >= 400,
-      user + ': registry refused');
+    for (const [page, what] of [['index.php', 'registry'], ['response.php?slip=1', 'record an answer'],
+      ['view.php?id=1&action=exportslips', 'answers list']]) {
+      const r = await s.goto(L + page);
+      check(/nopermissions|required|permisos|permission/i.test(await s.content()) || r.status() >= 400,
+        user + ': ' + what + ' refused');
+    }
   }
 
   // The administrator: issuing units linked to users, signatures per type, the text toolbar.

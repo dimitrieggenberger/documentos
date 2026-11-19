@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.9.0] - 2026-11-19
+
+Prepared for the move into the school's `platform` repository (summer 2027), whose constitution this release starts to follow.
+
+### Changed
+
+- **The image authorisation asks about one publication, not the whole year.** *Autorización de publicación de imagen* (until now *de toma de datos, fotos y uso de imagen*) follows the Handbook's policy on images (page 116, version 3). It names the image or session, its purpose, its channel and the planned text, and it says that a refusal changes nothing for the student, that the student is asked too, that Gerencia Académica approves each publication, and that consent can be withdrawn. The slip has a line for the student's own agreement. It still fits on one page with its slip. Where nobody had edited the template, the upgrade replaces it with a new version.
+- **Recording families' answers and downloading the list of answers are permissions of their own:** `local/documents:recordresponses` and `local/documents:export`, apart from issuing and viewing (the platform's Article 5.4). Roles that could do it keep it: the upgrade copies them from `issue` and `view`.
+- **The WordPress plugin is now `verificacion-europaschule`** (0.7.0), as the platform's naming convention asks: the folder ends in `-europaschule`, the shortcode is `[verificacion_europaschule]`, and every name starts with `es_ver_` (CSS `es-ver`). These names become permanent once it is in production. Settings saved under the old name are still read. A page that uses `[es_verificacion]` needs the new shortcode.
+
+### Added
+
+- `docs/retention.md`: how long each kind of data is kept today, the period proposed for it, and who decides. It also covers how data is removed, and that the verification address must keep working as long as any document is kept.
+- `docs/decision-draft.md`: the decision record to propose in `platform`, covering the permanent names, the rules with their source, the ten decision tests and a pilot.
+
 ## [0.8.4] - 2026-11-19
 
 ### Fixed
